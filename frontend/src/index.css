@@ -13,9 +13,9 @@
   --bg-card: #FFFFFF;         /* Crisp White Card */
   --bg-card-hover: #FFF9FB;   /* Tinted White on Hover */
   
-  --text-white: #1A1315;      /* Deep Charcoal for readability (originally named text-white) */
-  --text-gray: #4E4548;       /* Medium Charcoal Gray for body text */
-  --text-heading: #31050B;    /* Deep Burgundy/Maroon for headings */
+  --text-white: #080607;      /* High contrast black-charcoal */
+  --text-gray: #171113;       /* Deep dark charcoal */
+  --text-heading: #120002;    /* Deep burgundy/black */
   
   --border-color: rgba(233, 30, 99, 0.12);
   --border-glow: rgba(233, 30, 99, 0.25);
@@ -219,6 +219,7 @@ h1, h2, h3, h4, h5, h6 {
   height: 100%;
   background: radial-gradient(circle at 50% 50%, transparent 40%, var(--bg-black) 95%);
   pointer-events: none;
+  z-index: -1;
 }
 
 /* Page container styling */
@@ -232,13 +233,13 @@ h1, h2, h3, h4, h5, h6 {
 /* Hero Badge */
 .brand-badge {
   background: rgba(233, 30, 99, 0.06);
-  border: 1px solid rgba(233, 30, 99, 0.2);
-  color: var(--primary);
+  border: 1px solid rgba(233, 30, 99, 0.45);
+  color: var(--primary-hover);
   padding: 6px 16px;
   border-radius: 20px;
   font-size: 0.85rem;
   font-family: var(--font-display);
-  font-weight: 600;
+  font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   display: inline-flex;

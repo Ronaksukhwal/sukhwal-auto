@@ -33,7 +33,7 @@ export default function Home({ setTab }) {
         
         {/* Left Column: Title and details */}
         <div className="lg:col-span-6 flex flex-col justify-center">
-          <motion.div variants={itemVariants} className="brand-badge" style={{ color: 'var(--primary-hover)', fontWeight: '800' }}>
+          <motion.div variants={itemVariants} className="brand-badge">
             <Flame size={14} className="animate-pulse" /> Specialized Workshop
           </motion.div>
           
@@ -42,7 +42,7 @@ export default function Home({ setTab }) {
             style={{ 
               fontSize: 'clamp(2.3rem, 4.5vw, 4rem)', 
               lineHeight: '1.15',
-              color: '#1a1315',
+              color: 'var(--text-heading)',
               marginBottom: '1.5rem'
             }}
           >
@@ -53,13 +53,14 @@ export default function Home({ setTab }) {
             variants={itemVariants}
             style={{ 
               fontSize: '1.05rem', 
-              color: '#2c1e21',
+              color: 'var(--text-gray)',
+              fontWeight: '500',
               maxWidth: '600px',
               lineHeight: '1.6',
               marginBottom: '2.5rem'
             }}
           >
-            Bhilwara's premier specialized service hub dedicated <strong style={{ color: 'var(--text-heading)' }}>exclusively to Hero Honda and Hero MotoCorp</strong> motorcycles. Directed by master mechanic <strong style={{ color: 'var(--text-heading)' }}>Gopal Sukhwal</strong>. Engineered for reliability, built with 100% genuine parts.
+            Bhilwara's premier specialized service hub dedicated <strong style={{ color: 'var(--text-heading)', fontWeight: '755' }}>exclusively to Hero Honda and Hero MotoCorp</strong> motorcycles. Directed by master mechanic <strong style={{ color: 'var(--text-heading)', fontWeight: '755' }}>Gopal Sukhwal</strong>. Engineered for reliability, built with 100% genuine parts.
           </motion.p>
 
           <motion.div variants={itemVariants} style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -70,10 +71,10 @@ export default function Home({ setTab }) {
               onClick={() => setTab('parts')}
               style={{
                 background: 'transparent',
-                border: '1px solid rgba(233, 30, 99, 0.25)',
-                color: 'var(--primary)',
+                border: '2px solid var(--primary)',
+                color: 'var(--primary-hover)',
                 fontFamily: 'var(--font-display)',
-                fontWeight: '700',
+                fontWeight: '800',
                 padding: '14px 30px',
                 borderRadius: '30px',
                 cursor: 'pointer',

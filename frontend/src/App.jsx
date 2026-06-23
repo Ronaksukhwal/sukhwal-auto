@@ -103,10 +103,11 @@ export default function App() {
           alignItems: 'center', 
           padding: '0 5%',
           borderRadius: 0,
-          borderBottom: '1px solid rgba(233, 30, 99, 0.08)',
-          background: 'rgba(255, 253, 245, 0.9)',
+          borderBottom: '1px solid rgba(233, 30, 99, 0.15)',
+          background: 'rgba(255, 255, 255, 0.96)',
           backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)'
+          WebkitBackdropFilter: 'blur(20px)',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.06)'
         }}
       >
         {/* Logo */}
@@ -140,8 +141,8 @@ export default function App() {
                 border: 'none',
                 color: tab === item.id ? 'var(--primary)' : 'var(--text-heading)',
                 fontFamily: 'var(--font-display)',
-                fontWeight: '700',
-                fontSize: '0.85rem',
+                fontWeight: '800',
+                fontSize: '0.92rem',
                 cursor: 'pointer',
                 position: 'relative',
                 padding: '6px 4px',
@@ -268,16 +269,17 @@ export default function App() {
       {/* Footer */}
       <footer 
         style={{ 
-          borderTop: '1px solid rgba(233, 30, 99, 0.08)', 
-          padding: '2rem 5%', 
-          background: 'rgba(255, 253, 245, 0.95)',
+          borderTop: '1px solid rgba(233, 30, 99, 0.15)', 
+          padding: '2.5rem 5%', 
+          background: '#fffdf5',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
           gap: '1.5rem',
-          fontSize: '0.85rem',
-          color: 'var(--text-gray)'
+          fontSize: '0.88rem',
+          color: 'var(--text-gray)',
+          fontWeight: '600'
         }}
       >
         <div>

@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldCheck, Calendar, Info, Sparkles } from 'lucide-react';
 import { GearCanvas } from '../components/ThreePartsCanvas';
 import LiquidButton from '../components/LiquidButton';
+import { API_URL } from '../config';
+
 
 // Default list of bikes to ensure the dropdown is populated even if the API is offline
 const LOCAL_BIKES_CATALOG = {
@@ -45,7 +47,7 @@ export default function Bikes({ setTab, setSelectedBikeModel }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/bikes")
+    fetch(`${API_URL}/api/bikes`)
       .then(res => {
         if (!res.ok) throw new Error("Server error");
         return res.json();

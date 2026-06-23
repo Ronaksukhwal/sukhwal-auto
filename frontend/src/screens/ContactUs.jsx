@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { MapPin, Phone, Mail, Clock, Send, CheckCircle } from 'lucide-react';
 import { BrakeDiscCanvas } from '../components/ThreePartsCanvas';
 import LiquidButton from '../components/LiquidButton';
+import { API_URL } from '../config';
+
 
 export default function ContactUs() {
   const [name, setName] = useState('');
@@ -29,7 +31,7 @@ export default function ContactUs() {
     };
 
     try {
-      const response = await fetch("http://localhost:8000/api/contact", {
+      const response = await fetch(`${API_URL}/api/contact`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)

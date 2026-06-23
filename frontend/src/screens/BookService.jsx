@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, Clock, MapPin, CheckCircle, Navigation, ShieldCheck, PhoneCall } from 'lucide-react';
 import { SparkPlugCanvas } from '../components/ThreePartsCanvas';
 import LiquidButton from '../components/LiquidButton';
+import { API_URL } from '../config';
+
 
 // Default list of bikes to ensure the dropdown is populated even if the API is offline
 const FLAT_BIKES_FALLBACK = [
@@ -55,7 +57,7 @@ export default function BookService({ selectedBikeModel, setSelectedBikeModel, s
 
   // Fetch bikes from API on load
   useEffect(() => {
-    fetch("http://localhost:8000/api/bikes")
+    fetch(`${API_URL}/api/bikes`)
       .then(res => res.json())
       .then(data => {
         const flatList = Object.values(data).flat().map(b => b.name);
@@ -108,7 +110,7 @@ export default function BookService({ selectedBikeModel, setSelectedBikeModel, s
     };
 
     try {
-      const response = await fetch("http://localhost:8000/api/bookings", {
+      const response = await fetch(`${API_URL}/api/bookings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
