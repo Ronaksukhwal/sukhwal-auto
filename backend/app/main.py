@@ -64,6 +64,69 @@ def send_raw_email(to_email: str, subject: str, html_content: str, reply_to: str
     # Reload dotenv dynamically in case the user edited the file while the server is running
     load_dotenv()
     
+    # Check for HTTP-based API keys first to bypass Render SMTP blocks
+    resend_key = os.environ.get("RESEND_API_KEY", "")
+    brevo_key = os.environ.get("BREVO_API_KEY", "")
+    
+    # 1. Try Brevo HTTPS API if key is set
+    if brevo_key:
+        try:
+            import urllib.request
+            import json
+            url = "https://api.brevo.com/v3/smtp/email"
+            sender_email = os.environ.get("SMTP_FROM", "") or os.environ.get("SMTP_USER", "") or "ronaksukhwal5@gmail.com"
+            headers = {
+                "api-key": brevo_key,
+                "Content-Type": "application/json"
+            }
+            body = {
+                "sender": {"name": "Sukhwal Auto Services", "email": sender_email},
+                "to": [{"email": to_email}],
+                "subject": subject,
+                "htmlContent": html_content
+            }
+            if reply_to:
+                body["replyTo"] = {"email": reply_to}
+                
+            req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), headers=headers, method="POST")
+            with urllib.request.urlopen(req, timeout=10) as response:
+                res_body = response.read().decode("utf-8")
+                logger.info(f"Successfully sent email to {to_email} via Brevo API: {res_body}")
+                return True
+        except Exception as e:
+            logger.error(f"Failed to send email to {to_email} via Brevo API: {str(e)}")
+            # Fall through to other methods if this failed
+            
+    # 2. Try Resend HTTPS API if key is set
+    if resend_key:
+        try:
+            import urllib.request
+            import json
+            url = "https://api.resend.com/emails"
+            sender_email = os.environ.get("SMTP_FROM", "") or "onboarding@resend.dev"
+            headers = {
+                "Authorization": f"Bearer {resend_key}",
+                "Content-Type": "application/json"
+            }
+            body = {
+                "from": f"Sukhwal Auto Services <{sender_email}>",
+                "to": [to_email],
+                "subject": subject,
+                "html": html_content
+            }
+            if reply_to:
+                body["reply_to"] = reply_to
+                
+            req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), headers=headers, method="POST")
+            with urllib.request.urlopen(req, timeout=10) as response:
+                res_body = response.read().decode("utf-8")
+                logger.info(f"Successfully sent email to {to_email} via Resend API: {res_body}")
+                return True
+        except Exception as e:
+            logger.error(f"Failed to send email to {to_email} via Resend API: {str(e)}")
+            # Fall through to other methods if this failed
+
+    # 3. Fallback to standard SMTP
     host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
     try:
         port = int(os.environ.get("SMTP_PORT", "587"))
@@ -76,7 +139,7 @@ def send_raw_email(to_email: str, subject: str, html_content: str, reply_to: str
     if not user or not password or "your_gmail_app_password_here" in password:
         logger.warning(
             f"[EMAIL MOCK] SMTP credentials not fully configured (USER={user}, PASSWORD_SET={bool(password)}). "
-            f"Skipping actual email send to {to_email}. Please configure SMTP_USER and SMTP_PASSWORD in your .env file at the project root. "
+            f"Skipping actual email send to {to_email}. Please configure SMTP_USER and SMTP_PASSWORD in your .env file, or set BREVO_API_KEY / RESEND_API_KEY. "
             f"Logging email content preview:\nSubject: {subject}\nHTML preview: {html_content[:200]}..."
         )
         return False
@@ -100,10 +163,10 @@ def send_raw_email(to_email: str, subject: str, html_content: str, reply_to: str
         server.login(user, password)
         server.sendmail(sender, [to_email], msg.as_string())
         server.quit()
-        logger.info(f"Successfully sent email to {to_email}")
+        logger.info(f"Successfully sent email to {to_email} via SMTP")
         return True
     except Exception as e:
-        logger.error(f"Failed to send email to {to_email} due to error: {str(e)}")
+        logger.error(f"Failed to send email to {to_email} due to SMTP error: {str(e)}")
         return False
 
 app = FastAPI(
