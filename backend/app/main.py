@@ -54,7 +54,7 @@ try:
     SMTP_PORT = int(os.environ.get("SMTP_PORT", "587") or "587")
 except ValueError:
     SMTP_PORT = 587
-SMTP_USER = os.environ.get("SMTP_USER", "")
+SMTP_USER = os.environ.get("SMTP_USER", "ronaksukhwal5@gmail.com")
 SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
 SMTP_FROM = os.environ.get("SMTP_FROM", "") or SMTP_USER
 
@@ -132,7 +132,7 @@ def send_raw_email(to_email: str, subject: str, html_content: str, reply_to: str
         port = int(os.environ.get("SMTP_PORT", "587"))
     except ValueError:
         port = 587
-    user = os.environ.get("SMTP_USER", "")
+    user = os.environ.get("SMTP_USER", "ronaksukhwal5@gmail.com")
     password = os.environ.get("SMTP_PASSWORD", "")
     sender = os.environ.get("SMTP_FROM", "") or user
     
