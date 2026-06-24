@@ -1,7 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Wrench, ShieldCheck, MapPin, Award, Navigation, Flame, Clock } from 'lucide-react';
-import { PistonCanvas } from '../components/ThreePartsCanvas';
 import LiquidButton from '../components/LiquidButton';
 import shopFrontImg from '../assets/shop_front.jpg';
 import aiWorkshopImg from '../assets/ai_workshop_front.png';
@@ -102,9 +101,30 @@ export default function Home({ setTab }) {
             background: 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,248,249,0.95) 100%)'
           }}
         >
-          {/* Embedded 3D Piston animation widget */}
-          <div style={{ background: 'rgba(233,30,99,0.02)', borderRadius: '12px', border: '1px solid rgba(233,30,99,0.06)', overflow: 'hidden' }}>
-            <PistonCanvas />
+          {/* Embedded 3D Engine Animation Video */}
+          <div style={{ 
+            width: '100%',
+            aspectRatio: '16 / 9',
+            borderRadius: '12px', 
+            overflow: 'hidden',
+            boxShadow: 'var(--card-shadow)',
+            border: '1px solid rgba(233,30,99,0.12)',
+            position: 'relative'
+          }}>
+            <video
+              src="/engine_animation.mp4"
+              autoPlay
+              loop
+              muted
+              playsInline
+              controls
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                display: 'block'
+              }}
+            />
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem' }}>

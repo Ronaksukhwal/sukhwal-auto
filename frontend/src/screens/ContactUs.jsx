@@ -303,54 +303,6 @@ export default function ContactUs() {
 
       </div>
 
-      {/* 3D Engine Animation Video Card */}
-      <div 
-        className="glass-panel" 
-        style={{ 
-          marginTop: '3rem', 
-          padding: '2.5rem 2rem', 
-          background: '#ffffff', 
-          border: '1px solid rgba(233,30,99,0.08)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          textAlign: 'center',
-          gap: '1rem'
-        }}
-      >
-        <h3 style={{ color: 'var(--text-heading)', fontSize: '1.4rem', fontWeight: '800', margin: 0 }}>
-          Hero Engine Mechanics: 3D Animation
-        </h3>
-        <p style={{ color: 'var(--text-gray)', fontSize: '0.9rem', maxWidth: '600px', margin: '0 auto 1rem auto', lineHeight: '1.5' }}>
-          Watch this detailed 3D engineering animation showing the complex internal assembly and precision timing mechanics of a professional single-cylinder motorcycle engine.
-        </p>
-        
-        {/* Responsive Video Container */}
-        <div style={{
-          width: '100%',
-          maxWidth: '800px',
-          aspectRatio: '16 / 9',
-          borderRadius: '12px',
-          overflow: 'hidden',
-          boxShadow: 'var(--card-shadow)',
-          border: '1px solid rgba(233,30,99,0.12)'
-        }}>
-          <video
-            src="/engine_animation.mp4"
-            autoPlay
-            loop
-            muted
-            playsInline
-            controls
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              display: 'block'
-            }}
-          />
-        </div>
-      </div>
     </motion.div>
   );
 }
