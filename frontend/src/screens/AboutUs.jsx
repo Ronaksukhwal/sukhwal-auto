@@ -3,6 +3,11 @@ import { motion } from 'framer-motion';
 import { Shield, Sparkles, HeartHandshake, History } from 'lucide-react';
 import { EngineAssemblyCanvas } from '../components/ThreePartsCanvas';
 import gopalProfileImg from '../assets/gopal_profile.jpg';
+import ronakProfileImg from '../assets/ronak_profile.jpg';
+import deepakProfileImg from '../assets/deepak_profile.jpg';
+import kaluProfileImg from '../assets/kalu_profile.jpg';
+import narayanProfileImg from '../assets/narayan_profile.jpg';
+
 
 
 export default function AboutUs() {
@@ -84,6 +89,81 @@ export default function AboutUs() {
           <p style={{ color: 'var(--text-gray)', fontSize: '0.95rem', lineHeight: '1.6' }}>
             Whether you ride a vintage CD100 sloper, a mileage-king Splendor, or a modern XPulse 200 4V adventure bike, your machine is serviced directly under Mr. Sukhwal's personal quality control. This guarantees that your vehicle is calibrated exactly to its original factory parameters.
           </p>
+        </div>
+      </div>
+
+      {/* Technicians Section */}
+      <div style={{ marginTop: '4rem', textAlign: 'center' }}>
+        <div className="brand-badge">
+          <Sparkles size={14} /> Our Experts
+        </div>
+        <h2 style={{ fontSize: '2rem', marginBottom: '0.75rem', color: 'var(--text-heading)' }}>
+          Our Expert <span style={{ color: 'var(--primary)' }}>Technician Team</span>
+        </h2>
+        <p style={{ color: 'var(--text-gray)', maxWidth: '600px', margin: '0 auto 2.5rem auto', lineHeight: '1.6' }}>
+          Meet the skilled professionals who keep your Hero and Hero Honda motorcycles running like new.
+        </p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem' }}>
+          {[
+            {
+              name: "Ronak Sukhwal",
+              role: "Technician and Software Developer",
+              image: ronakProfileImg
+            },
+            {
+              name: "Technician Deepak",
+              role: "Technician Senior",
+              image: deepakProfileImg
+            },
+            {
+              name: "Technician Kalu",
+              role: "Technician Intermediate",
+              image: kaluProfileImg
+            },
+            {
+              name: "Technician Narayan",
+              role: "Junior Technician",
+              image: narayanProfileImg
+            }
+          ].map((tech, idx) => (
+            <motion.div 
+              key={idx}
+              className="glass-panel glow-hover"
+              style={{
+                padding: '2.5rem 1.5rem',
+                background: '#ffffff',
+                border: '1px solid rgba(233,30,99,0.08)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                textAlign: 'center',
+                borderRadius: '16px'
+              }}
+              whileHover={{ y: -5 }}
+              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            >
+              <img 
+                src={tech.image} 
+                alt={tech.name} 
+                style={{ 
+                  width: '120px', 
+                  height: '120px', 
+                  borderRadius: '50%', 
+                  border: '3px solid var(--primary)',
+                  objectFit: 'cover',
+                  marginBottom: '1.25rem',
+                  boxShadow: 'var(--card-shadow)'
+                }} 
+              />
+              <h3 style={{ color: 'var(--text-heading)', fontSize: '1.2rem', fontWeight: '800', marginBottom: '0.4rem' }}>
+                {tech.name}
+              </h3>
+              <p style={{ color: 'var(--primary)', fontSize: '0.85rem', fontWeight: '750', fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                {tech.role}
+              </p>
+            </motion.div>
+          ))}
         </div>
       </div>
 
