@@ -327,11 +327,9 @@ export default function ContactUs() {
         
         {/* Responsive Video Container */}
         <div style={{
-          position: 'relative',
           width: '100%',
           maxWidth: '800px',
-          paddingBottom: '56.25%', /* 16:9 Aspect Ratio */
-          height: 0,
+          aspectRatio: '16 / 9',
           borderRadius: '12px',
           overflow: 'hidden',
           boxShadow: 'var(--card-shadow)',
@@ -345,13 +343,10 @@ export default function ContactUs() {
             playsInline
             controls
             style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
               width: '100%',
               height: '100%',
-              border: 0,
-              objectFit: 'cover'
+              objectFit: 'cover',
+              display: 'block'
             }}
           />
         </div>
