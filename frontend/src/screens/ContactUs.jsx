@@ -302,6 +302,58 @@ export default function ContactUs() {
         </div>
 
       </div>
+
+      {/* 3D Engine Animation Video Card */}
+      <div 
+        className="glass-panel" 
+        style={{ 
+          marginTop: '3rem', 
+          padding: '2.5rem 2rem', 
+          background: '#ffffff', 
+          border: '1px solid rgba(233,30,99,0.08)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          textAlign: 'center',
+          gap: '1rem'
+        }}
+      >
+        <h3 style={{ color: 'var(--text-heading)', fontSize: '1.4rem', fontWeight: '800', margin: 0 }}>
+          Hero Engine Mechanics: 3D Animation
+        </h3>
+        <p style={{ color: 'var(--text-gray)', fontSize: '0.9rem', maxWidth: '600px', margin: '0 auto 1rem auto', lineHeight: '1.5' }}>
+          Watch this detailed 3D engineering animation showing the complex internal assembly and precision timing mechanics of a professional single-cylinder motorcycle engine.
+        </p>
+        
+        {/* Responsive Video Container */}
+        <div style={{
+          position: 'relative',
+          width: '100%',
+          maxWidth: '800px',
+          paddingBottom: '56.25%', /* 16:9 Aspect Ratio */
+          height: 0,
+          borderRadius: '12px',
+          overflow: 'hidden',
+          boxShadow: 'var(--card-shadow)',
+          border: '1px solid rgba(233,30,99,0.12)'
+        }}>
+          <iframe
+            src="https://www.youtube.com/embed/JhHsPoK_2RI?rel=0"
+            title="Motorcycle Engine 3D Animation"
+            frameBorder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              border: 0
+            }}
+          ></iframe>
+        </div>
+      </div>
     </motion.div>
   );
 }
