@@ -337,21 +337,23 @@ export default function ContactUs() {
           boxShadow: 'var(--card-shadow)',
           border: '1px solid rgba(233,30,99,0.12)'
         }}>
-          <iframe
-            src="https://www.youtube.com/embed/JhHsPoK_2RI?rel=0"
-            title="Motorcycle Engine 3D Animation"
-            frameBorder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
+          <video
+            src="/engine_animation.mp4"
+            autoPlay
+            loop
+            muted
+            playsInline
+            controls
             style={{
               position: 'absolute',
               top: 0,
               left: 0,
               width: '100%',
               height: '100%',
-              border: 0
+              border: 0,
+              objectFit: 'cover'
             }}
-          ></iframe>
+          />
         </div>
       </div>
     </motion.div>
