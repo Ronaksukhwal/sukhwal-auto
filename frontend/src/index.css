@@ -323,3 +323,31 @@ input::placeholder, textarea::placeholder {
 .nav-link-btn:hover {
   color: var(--primary) !important;
 }
+
+/* Responsive Grid & Padding Utilities to prevent mobile layout overflow and text clipping */
+.responsive-grid-320 {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)) !important;
+}
+
+.responsive-padding {
+  padding: 2.5rem 2rem !important;
+}
+
+@media (max-width: 768px) {
+  .responsive-grid-320 {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
+    gap: 1.5rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .responsive-grid-320 {
+    grid-template-columns: 1fr !important;
+    gap: 1.5rem !important;
+  }
+  .responsive-padding {
+    padding: 1.5rem 1rem !important;
+  }
+}
+

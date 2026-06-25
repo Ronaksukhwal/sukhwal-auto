@@ -28,7 +28,7 @@ export default function Home({ setTab }) {
       variants={containerVariants}
     >
       {/* Hero Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center py-8" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '3rem' }}>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center py-8" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '3rem' }}>
         
         {/* Left Column: Title and details */}
         <div className="lg:col-span-6 flex flex-col justify-center">
@@ -158,12 +158,8 @@ export default function Home({ setTab }) {
       {/* Physical Workshop Section */}
       <motion.div 
         variants={itemVariants}
-        className="glass-panel"
+        className="glass-panel responsive-grid-320 responsive-padding"
         style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-          gap: '2.5rem',
-          padding: '2.5rem 2rem',
           margin: '3rem 0 1rem 0',
           background: '#ffffff',
           border: '1px solid rgba(233,30,99,0.08)',

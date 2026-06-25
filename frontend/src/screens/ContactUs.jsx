@@ -71,7 +71,7 @@ export default function ContactUs() {
         </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2.5rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2.5rem' }}>
         
         {/* Left Column: Details, Map & 3D Brake Disc */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
