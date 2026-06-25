@@ -44,7 +44,7 @@ const LOCAL_BIKES_CATALOG = {
 export default function Bikes({ setTab, setSelectedBikeModel }) {
   const [catalog, setCatalog] = useState(LOCAL_BIKES_CATALOG);
   const [activeCategory, setActiveCategory] = useState(Object.keys(LOCAL_BIKES_CATALOG)[0]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetch(`${API_URL}/api/bikes`)
@@ -54,12 +54,10 @@ export default function Bikes({ setTab, setSelectedBikeModel }) {
       })
       .then(data => {
         setCatalog(data);
-        setActiveCategory(Object.keys(data)[0]);
-        setLoading(false);
+        setActiveCategory(prev => Object.keys(data).includes(prev) ? prev : Object.keys(data)[0]);
       })
       .catch(err => {
-        console.warn("Backend API not reachable. Loading local fallback catalog.", err);
-        setLoading(false);
+        console.warn("Backend API not reachable. Using local fallback catalog.", err);
       });
   }, []);
 

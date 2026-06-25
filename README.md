@@ -1,6 +1,6 @@
 # Sukhwal Auto Services - Web Platform
 
-A premium, highly animated website and booking platform for **Sukhwal Auto Services** in Udaipur. This workshop specializes exclusively in repairing **Hero Honda** and **Hero MotoCorp** motorcycles, using only 100% genuine spares.
+A premium, highly animated website and booking platform for **Sukhwal Auto Services** in Bhilwara. This workshop specializes exclusively in repairing **Hero Honda** and **Hero MotoCorp** motorcycles, using only 100% genuine spares.
 
 ---
 
@@ -113,4 +113,4 @@ Instead of loading external heavy `.gltf` mesh files (which can cause slow load 
 - **Assembly Animation:** When the "Assemble Engine" button is clicked, a state changes the target position of all parts to slide along their coordinate paths using a smooth mathematical interpolation (lerp) into a singular stack.
 
 ### 3. Smart Pickup & Drop Option
-The booking form in `BookService.jsx` contains a toggle switch for the pickup/drop service. Activating it triggers a slide transition revealing two fields for the customer's pickup and drop-off address in Udaipur, which are validated by the backend.
+The booking form in `BookService.jsx` contains a toggle switch for the pickup/drop service. Activating it triggers a slide transition revealing two fields for the customer's pickup and drop-off address in Bhilwara, which are validated by the backend.
