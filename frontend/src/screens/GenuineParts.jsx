@@ -245,7 +245,7 @@ export default function GenuineParts() {
           }}>
             <ShieldCheck color="var(--primary)" size={32} style={{ flexShrink: 0 }} />
             <p style={{ fontSize: '0.8rem', color: 'var(--text-gray)', lineHeight: '1.5' }}>
-              <strong>GOPAL SUKHWAL\'S PROMISE:</strong> We refuse to compromise your safety. Under no circumstances will we install replica cables, duplicate filters, or counterfeit brake components. Every single spare has full traceability to official Hero MotoCorp distributors.
+              <strong>GOPAL SUKHWAL'S PROMISE:</strong> We refuse to compromise your safety. Under no circumstances will we install replica cables, duplicate filters, or counterfeit brake components. Every single spare has full traceability to official Hero MotoCorp distributors.
             </p>
           </div>
         </div>

@@ -328,6 +328,7 @@ input::placeholder, textarea::placeholder {
 .responsive-grid-320 {
   display: grid !important;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)) !important;
+  gap: 2.5rem !important;
 }
 
 .responsive-padding {
