@@ -44,10 +44,10 @@ const partsData = [
 ];
 
 export default function GenuineParts() {
-  const [activePartId, setActivePartId] = useState(0);
+  const [selectedIdx, setSelectedIdx] = useState(0);
   const [showCertificate, setShowCertificate] = useState(false);
 
-  const activePart = partsData.find(p => p.id === activePartId);
+  const selectedPart = partsData[selectedIdx];
 
   return (
     <motion.div 
