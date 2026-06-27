@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, Clock, MapPin, CheckCircle, Navigation, ShieldCheck, PhoneCall } from 'lucide-react';
-import { SparkPlugCanvas } from '../components/ThreePartsCanvas';
-import LiquidButton from '../components/LiquidButton';
-import { API_URL } from '../config';
-
+import { SparkPlugCanvas } from '../../components/ThreePartsCanvas';
+import LiquidButton from '../../components/LiquidButton';
+import { API_URL } from '../../config';
+import { useLocation } from 'react-router-dom';
+import SEO from '../../components/seo/SEO';
 
 // Default list of bikes to ensure the dropdown is populated even if the API is offline
 const FLAT_BIKES_FALLBACK = [
@@ -33,15 +34,19 @@ const FLAT_BIKES_FALLBACK = [
   "Hero Zoom 110"
 ];
 
-export default function BookService({ selectedBikeModel, setSelectedBikeModel, selectedServiceType, setSelectedServiceType }) {
+export default function BookService() {
+  const location = useLocation();
+  const prefilledBike = location.state?.selectedBikeModel || '';
+  const prefilledService = location.state?.selectedServiceType || '';
+
   const [bikes, setBikes] = useState(FLAT_BIKES_FALLBACK);
   
   // Form State
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
-  const [bikeModel, setBikeModel] = useState(selectedBikeModel || '');
-  const [serviceType, setServiceType] = useState(selectedServiceType || 'Commuter Essential Care');
+  const [bikeModel, setBikeModel] = useState(prefilledBike);
+  const [serviceType, setServiceType] = useState(prefilledService || 'Commuter Essential Care');
   const [bookingDate, setBookingDate] = useState('');
   const [bookingTime, setBookingTime] = useState('10:00 AM');
   const [needsPickup, setNeedsPickup] = useState(false);
@@ -66,14 +71,14 @@ export default function BookService({ selectedBikeModel, setSelectedBikeModel, s
       .catch(err => console.log("Using local bikes dropdown fallback."));
   }, []);
 
-  // Update field if prop changes
+  // Update fields if location state changes (e.g. if navigate occurs multiple times)
   useEffect(() => {
-    if (selectedBikeModel) setBikeModel(selectedBikeModel);
-  }, [selectedBikeModel]);
+    if (prefilledBike) setBikeModel(prefilledBike);
+  }, [prefilledBike]);
 
   useEffect(() => {
-    if (selectedServiceType) setServiceType(selectedServiceType);
-  }, [selectedServiceType]);
+    if (prefilledService) setServiceType(prefilledService);
+  }, [prefilledService]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -124,10 +129,6 @@ export default function BookService({ selectedBikeModel, setSelectedBikeModel, s
       const result = await response.json();
       setBookingDetails(result);
       setSubmitSuccess(true);
-      
-      // Clear selections in parent
-      if (setSelectedBikeModel) setSelectedBikeModel('');
-      if (setSelectedServiceType) setSelectedServiceType('');
     } catch (err) {
       setFormError(err.message || 'Server connection error. Please try again.');
     } finally {
@@ -257,6 +258,12 @@ export default function BookService({ selectedBikeModel, setSelectedBikeModel, s
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
+      <SEO 
+        title="Book Bike Service Online"
+        description="Schedule your bike service online at Sukhwal Auto Services. Select your Hero model, preferred service package, date, time slot, and request doorstep pickup/drop in Bhilwara."
+        keywords="book bike service online Bhilwara, schedule Hero service, online motorcycle booking Rajasthan, doorstep bike pickup Bhilwara"
+        canonical="https://sukhwalautoservice.in/book-service"
+      />
       <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
         <div className="brand-badge">
           <Calendar size={14} /> Scheduling Portal

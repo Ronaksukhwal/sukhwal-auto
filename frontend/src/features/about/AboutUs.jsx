@@ -1,14 +1,13 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Shield, Sparkles, HeartHandshake, History } from 'lucide-react';
-import { EngineAssemblyCanvas } from '../components/ThreePartsCanvas';
-import gopalProfileImg from '../assets/gopal_profile.jpg';
-import ronakProfileImg from '../assets/ronak_profile.jpg';
-import deepakProfileImg from '../assets/deepak_profile.jpg';
-import kaluProfileImg from '../assets/kalu_profile.jpg';
-import narayanProfileImg from '../assets/narayan_profile.jpg';
-
-
+import { EngineAssemblyCanvas } from '../../components/ThreePartsCanvas';
+import gopalProfileImg from '../../assets/gopal_profile.jpg';
+import ronakProfileImg from '../../assets/ronak_profile.jpg';
+import deepakProfileImg from '../../assets/deepak_profile.jpg';
+import kaluProfileImg from '../../assets/kalu_profile.jpg';
+import narayanProfileImg from '../../assets/narayan_profile.jpg';
+import SEO from '../../components/seo/SEO';
 
 export default function AboutUs() {
   return (
@@ -18,6 +17,12 @@ export default function AboutUs() {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
+      <SEO 
+        title="40+ Years of Veteran Engineering"
+        description="Learn about Sukhwal Auto Services, directed by master mechanic Mr. Gopal Sukhwal with 40+ years of Hero bike repair experience. Bhilwara's leading specialized workshop."
+        keywords="Gopal Sukhwal mechanic, about Sukhwal Auto Services, best bike mechanic Bhilwara, veteran motorcycle engineer Rajasthan"
+        canonical="https://sukhwalautoservice.in/about-us"
+      />
       <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
         <div className="brand-badge">
           <History size={14} /> Our Heritage

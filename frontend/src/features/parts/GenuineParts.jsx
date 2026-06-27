@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldAlert, Cpu, CheckCircle2, Box, ShieldCheck, AlertTriangle, Award, Check, X } from 'lucide-react';
+import SEO from '../../components/seo/SEO';
 
-import engineCrankcaseImg from '../assets/engine_crankcase.jpg';
-import partsPileImg from '../assets/parts_pile.jpg';
-import beltComponentImg from '../assets/belt_component.jpg';
-import oilyGearsImg from '../assets/oily_gears.jpg';
+import engineCrankcaseImg from '../../assets/engine_crankcase.jpg';
+import partsPileImg from '../../assets/parts_pile.jpg';
+import beltComponentImg from '../../assets/belt_component.jpg';
+import oilyGearsImg from '../../assets/oily_gears.jpg';
 
 const partsData = [
   {
@@ -26,25 +27,27 @@ const partsData = [
   },
   {
     id: 2,
-    name: "Genuine Multi-Cylinder Pistons",
-    metric: "Reciprocating Twin-Piston Assembly",
-    desc: "Synchronized dual piston and connecting rod setup matching factory tolerances. Translates power smoothly with minimized structural vibration.",
-    specs: "Piston Count: 2 | Wrist Pin: 13mm | Rod length: 94mm",
+    name: "Genuine Timing Chain Belt Kit",
+    metric: "Anti-Wear Tensioner & Guide Track Assembly",
+    desc: "Premium anti-wear timing chain system that links your crankshaft and camshaft in perfect synchronization. Prevents valve-piston collision.",
+    specs: "Pitch: 1/4 inch | Link Count: 84 / 88 / 90 | Grade: Silent O.E.M.",
     img: beltComponentImg
   },
   {
     id: 3,
-    name: "Genuine Synchronization Gears",
-    metric: "High-Tensile Transmission Gear Train",
-    desc: "Dual transmission cogs meshing together under peak torque. Case-hardened construction prevents gear slippage and noisy operation.",
-    specs: "Large Gear: 18 Teeth | Small Gear: 12 Teeth | Hardness: 60 HRC",
+    name: "Genuine Gearbox Assembly Gears",
+    metric: "Ground helical gear tooth wheels",
+    desc: "Helical-ground transmission gear wheels built to minimize friction and prevent gear slip. Personal quality guarantee by Mr. Gopal Sukhwal.",
+    specs: "Tooth Profile: Involute | Hardness: HRC 58-62 | Layout: Constant Mesh",
     img: oilyGearsImg
   }
 ];
 
 export default function GenuineParts() {
-  const [selectedIdx, setSelectedIdx] = useState(0);
-  const selectedPart = partsData[selectedIdx];
+  const [activePartId, setActivePartId] = useState(0);
+  const [showCertificate, setShowCertificate] = useState(false);
+
+  const activePart = partsData.find(p => p.id === activePartId);
 
   return (
     <motion.div 
@@ -53,6 +56,12 @@ export default function GenuineParts() {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
+      <SEO 
+        title="100% Genuine Hero MotoCorp Spares"
+        description="We guarantee 100% authentic Hero MotoCorp and Hero Honda spare parts. No duplicate filters, replica cables, or fake brake pads. Full traceability to authorized distributors."
+        keywords="Hero genuine parts Bhilwara, Hero MotoCorp spare parts, original Hero air filters, genuine bike brake pads, OEM Hero parts Rajasthan"
+        canonical="https://sukhwalautoservice.in/genuine-parts"
+      />
       {/* Page Header */}
       <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
         <div className="brand-badge">

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldCheck, Calendar, Info, Sparkles } from 'lucide-react';
-import { GearCanvas } from '../components/ThreePartsCanvas';
-import LiquidButton from '../components/LiquidButton';
-import { API_URL } from '../config';
+import { GearCanvas } from '../../components/ThreePartsCanvas';
+import LiquidButton from '../../components/LiquidButton';
+import { API_URL } from '../../config';
+import { useNavigate } from 'react-router-dom';
+import SEO from '../../components/seo/SEO';
 
 
 // Default list of bikes to ensure the dropdown is populated even if the API is offline
@@ -26,25 +28,26 @@ const LOCAL_BIKES_CATALOG = {
     {"id": "glamour", "name": "Hero Glamour / XTEC", "year": "2005 - Present", "engine": "124.7 cc", "power": "10.7 bhp"},
     {"id": "super_splendor", "name": "Hero Super Splendor", "year": "2005 - Present", "engine": "124.7 cc", "power": "10.7 bhp"}
   ],
-  "Performance & Offroad": [
-    {"id": "xpulse_200", "name": "Hero XPulse 200 4V / 2V", "year": "2019 - Present", "engine": "199.6 cc (Oil Cooled)", "power": "18.9 bhp"},
-    {"id": "xpulse_200t", "name": "Hero XPulse 200T", "year": "2019 - Present", "engine": "199.6 cc", "power": "17.8 bhp"},
-    {"id": "xtreme_160r", "name": "Hero Xtreme 160R 4V / 2V", "year": "2020 - Present", "engine": "163 cc", "power": "15 bhp"},
-    {"id": "xtreme_125r", "name": "Hero Xtreme 125R", "year": "2024 - Present", "engine": "124.7 cc", "power": "11.4 bhp"},
-    {"id": "karizma_xmr", "name": "Hero Karizma XMR", "year": "2023 - Present", "engine": "210 cc (Liquid Cooled)", "power": "25.15 bhp"}
+  "Premium & Off-Road (Hero Era)": [
+    {"id": "xpulse_200", "name": "Hero Xpulse 200 4V / Pro", "year": "2018 - Present", "engine": "199.6 cc", "power": "18.9 bhp"},
+    {"id": "xtreme_160r", "name": "Hero Xtreme 160R / 4V", "year": "2020 - Present", "engine": "163 cc", "power": "15 bhp"},
+    {"id": "xtreme_200s", "name": "Hero Xtreme 200S 4V", "year": "2019 - Present", "engine": "199.6 cc", "power": "17.8 bhp"},
+    {"id": "karizma_xmr", "name": "Hero Karizma XMR 210", "year": "2023 - Present", "engine": "210 cc (Liquid Cooled)", "power": "25.15 bhp"},
+    {"id": "mavrick_440", "name": "Hero Mavrick 440", "year": "2024 - Present", "engine": "440 cc", "power": "27 bhp"}
   ],
-  "Scooters": [
-    {"id": "pleasure", "name": "Hero Pleasure Plus", "year": "2005 - Present", "engine": "110.9 cc", "power": "8 bhp"},
-    {"id": "maestro", "name": "Hero Maestro Edge 125", "year": "2012 - Present", "engine": "124.6 cc", "power": "9 bhp"},
-    {"id": "destini", "name": "Hero Destini 125", "year": "2018 - Present", "engine": "124.6 cc", "power": "9 bhp"},
+  "Scooters (Hero Era)": [
+    {"id": "pleasure_plus", "name": "Hero Pleasure Plus", "year": "2019 - Present", "engine": "110.9 cc", "power": "8 bhp"},
+    {"id": "maestro_edge", "name": "Hero Maestro Edge 125", "year": "2015 - Present", "engine": "124.6 cc", "power": "9 bhp"},
+    {"id": "destini_125", "name": "Hero Destini 125", "year": "2018 - Present", "engine": "124.6 cc", "power": "9 bhp"},
     {"id": "zoom", "name": "Hero Zoom 110", "year": "2023 - Present", "engine": "110.9 cc", "power": "8.05 bhp"}
   ]
 };
 
-export default function Bikes({ setTab, setSelectedBikeModel }) {
+export default function Bikes() {
   const [catalog, setCatalog] = useState(LOCAL_BIKES_CATALOG);
   const [activeCategory, setActiveCategory] = useState(Object.keys(LOCAL_BIKES_CATALOG)[0]);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetch(`${API_URL}/api/bikes`)
@@ -62,8 +65,7 @@ export default function Bikes({ setTab, setSelectedBikeModel }) {
   }, []);
 
   const handleBookService = (bikeName) => {
-    setSelectedBikeModel(bikeName);
-    setTab('book');
+    navigate('/book-service', { state: { selectedBikeModel: bikeName } });
   };
 
   const categories = Object.keys(catalog);
@@ -75,6 +77,12 @@ export default function Bikes({ setTab, setSelectedBikeModel }) {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
+      <SEO 
+        title="Specialized Servicing for all Hero Models"
+        description="Get specialized service schedules, genuine spares, and expert tuning for all Hero MotoCorp & Hero Honda bikes, including Splendor, HF Deluxe, Glamour, Passion, Xtreme, and Xpulse."
+        keywords="Hero Splendor service Bhilwara, Hero Xpulse repair, Glamour servicing, Hero Honda bike repair Bhilwara, specialized Hero mechanics"
+        canonical="https://sukhwalautoservice.in/hero-bikes"
+      />
       {/* Header section with split layout including the 3D rotating gear */}
       <div 
         style={{ 

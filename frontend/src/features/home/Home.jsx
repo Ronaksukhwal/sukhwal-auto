@@ -1,12 +1,14 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Wrench, ShieldCheck, MapPin, Award, Navigation, Flame, Clock } from 'lucide-react';
-import LiquidButton from '../components/LiquidButton';
-import shopFrontImg from '../assets/shop_front.jpg';
-import aiWorkshopImg from '../assets/ai_workshop_front.png';
+import LiquidButton from '../../components/LiquidButton';
+import shopFrontImg from '../../assets/shop_front.jpg';
+import aiWorkshopImg from '../../assets/ai_workshop_front.png';
+import SEO from '../../components/seo/SEO';
+import { useNavigate } from 'react-router-dom';
 
-
-export default function Home({ setTab }) {
+export default function Home() {
+  const navigate = useNavigate();
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -27,6 +29,12 @@ export default function Home({ setTab }) {
       animate="visible"
       variants={containerVariants}
     >
+      <SEO 
+        title="Bhilwara's Premier Hero Honda Workshop"
+        description="Bhilwara's premium specialized bike workshop for Hero Honda & Hero MotoCorp motorcycles. 100% genuine parts, certified engine tuning, and home pickup/drop facility."
+        keywords="Hero Honda repair Bhilwara, Hero bike service Bhilwara, Splendor service, Xpulse repair, Sukhwal Auto, Hero genuine parts, bike pickup drop Bhilwara"
+        canonical="https://sukhwalautoservice.in/"
+      />
       {/* Hero Section */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center py-8" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '3rem' }}>
         
@@ -63,11 +71,11 @@ export default function Home({ setTab }) {
           </motion.p>
 
           <motion.div variants={itemVariants} style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-            <LiquidButton onClick={() => setTab('book')}>
+            <LiquidButton onClick={() => navigate('/book-service')}>
               BOOK A SERVICE
             </LiquidButton>
             <button 
-              onClick={() => setTab('parts')}
+              onClick={() => navigate('/genuine-parts')}
               style={{
                 background: 'transparent',
                 border: '2px solid var(--primary)',

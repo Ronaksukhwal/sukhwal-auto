@@ -1,10 +1,14 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Check, Flame, Shield, HelpCircle, Wrench, Settings } from 'lucide-react';
-import { SpringCanvas } from '../components/ThreePartsCanvas';
-import LiquidButton from '../components/LiquidButton';
+import { SpringCanvas } from '../../components/ThreePartsCanvas';
+import LiquidButton from '../../components/LiquidButton';
+import { useNavigate } from 'react-router-dom';
+import SEO from '../../components/seo/SEO';
 
-export default function Services({ setTab, setSelectedServiceType }) {
+export default function Services() {
+  const navigate = useNavigate();
+
   const servicePackages = [
     {
       id: "commuter_pack",
@@ -25,28 +29,28 @@ export default function Services({ setTab, setSelectedServiceType }) {
       recommended: true
     },
     {
-      id: "overhaul_pack",
-      name: "Major Performance Overhaul",
-      subtitle: "Full restoration for all Hero Honda & Hero models",
-      price: "₹999",
+      id: "executive_pack",
+      name: "Executive Performance Tuning",
+      subtitle: "Tailored for CBZ, Hunk, Karizma R & ZMR",
+      price: "₹599",
       period: "+ Parts cost",
       features: [
-        "Everything in Essential Care package",
-        "Valve clearance (tappet) calibration",
-        "Clutch assembly & plates servicing",
-        "Front fork alignment & play check",
-        "Wheel bearing cleaning & greasing",
-        "Carbon clean & spark plug replacement",
-        "Full electrical harness & battery test"
+        "Digital ignition & timing check",
+        "Helical clutch play adjustment",
+        "Spark plug gap optimization",
+        "Carburetor jet washing & air-fuel mix calibration",
+        "Heavy wash, rust removal & premium wax polish",
+        "Telescopic fork oil seal inspection",
+        "Electrical wiring harness insulation check"
       ],
-      icon: Wrench,
+      icon: Shield,
       recommended: false
     },
     {
-      id: "performance_pack",
-      name: "Premium Xtreme & XPulse Tech",
-      subtitle: "Specially calibrated for XPulse, Xtreme & Karizma",
-      price: "₹1,299",
+      id: "premium_pack",
+      name: "Premium Off-Road & FI Special",
+      subtitle: "Tailored for XPulse 200/4V, Karizma XMR & Mavrick 440",
+      price: "₹999",
       period: "+ Parts cost",
       features: [
         "Fuel Injector cleaning & pressure test",
@@ -63,8 +67,7 @@ export default function Services({ setTab, setSelectedServiceType }) {
   ];
 
   const handleBook = (pkgName) => {
-    setSelectedServiceType(pkgName);
-    setTab('book');
+    navigate('/book-service', { state: { selectedServiceType: pkgName } });
   };
 
   return (
@@ -74,6 +77,13 @@ export default function Services({ setTab, setSelectedServiceType }) {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
+      <SEO 
+        title="Premium Maintenance & Engine Rebuild Services"
+        description="From general servicing and digital carburetor tuning to heavy engine rebuilds, bore sleeve replacements, and electric wiring diagnostics. Explore our service packages."
+        keywords="bike engine rebuild Bhilwara, digital carburetor tuning, bike electric repair, general bike service packages, premium motorcycle tuning Rajasthan"
+        canonical="https://sukhwalautoservice.in/services"
+      />
+
       {/* Header section with split layout including the 3D spring coil */}
       <div 
         style={{ 

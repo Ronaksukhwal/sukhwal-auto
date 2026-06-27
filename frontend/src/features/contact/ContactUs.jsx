@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { MapPin, Phone, Mail, Clock, Send, CheckCircle } from 'lucide-react';
-import { BrakeDiscCanvas } from '../components/ThreePartsCanvas';
-import LiquidButton from '../components/LiquidButton';
-import { API_URL } from '../config';
-
+import { BrakeDiscCanvas } from '../../components/ThreePartsCanvas';
+import LiquidButton from '../../components/LiquidButton';
+import { API_URL } from '../../config';
+import SEO from '../../components/seo/SEO';
 
 export default function ContactUs() {
   const [name, setName] = useState('');
@@ -59,6 +59,12 @@ export default function ContactUs() {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
+      <SEO 
+        title="Contact Our Bhilwara Workshop"
+        description="Have queries about servicing or parts? Reach out to Mr. Gopal Sukhwal & team. Find our location on Google Maps, call our support phone, or send an email."
+        keywords="contact Sukhwal Auto Services, phone number Gopal Sukhwal, bike workshop address Bhilwara, Hero service contact Bhilwara"
+        canonical="https://sukhwalautoservice.in/contact-us"
+      />
       <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
         <div className="brand-badge">
           <Phone size={14} /> Connect With Us
