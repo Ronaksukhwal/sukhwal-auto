@@ -75,7 +75,18 @@ export default function Header() {
             color: 'var(--text-heading)'
           }}
         >
-          <img src={logoImg} alt="Sukhwal Auto Services Logo" style={{ width: '48px', height: '48px', borderRadius: '8px', objectFit: 'contain' }} />
+          <img 
+            src={logoImg} 
+            alt="Sukhwal Auto Services Logo" 
+            style={{ 
+              width: '72px', 
+              height: '62px', 
+              borderRadius: '8px', 
+              objectFit: 'cover',
+              border: '1px solid rgba(233, 30, 99, 0.12)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+            }} 
+          />
           <span>SUKHWAL <span style={{ color: 'var(--primary)' }}>AUTO SERVICES</span></span>
         </div>
 
