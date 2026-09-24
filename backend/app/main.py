@@ -1,12 +1,16 @@
-from fastapi import FastAPI, Depends, HTTPException, status, BackgroundTasks
+from fastapi import FastAPI, Depends, HTTPException, status, BackgroundTasks, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from typing import List, Dict
+from typing import List, Dict, Optional
 import smtplib
+import socket
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import os
 import logging
+import json
+import urllib.request
+import urllib.error
 
 from .database import engine, get_db
 from . import models, schemas
@@ -20,12 +24,13 @@ logger = logging.getLogger(__name__)
 
 # Custom .env loader to support runtime configuration
 def load_dotenv():
-    # Try multiple levels up to find the workspace root .env file
     current_dir = os.path.dirname(os.path.abspath(__file__))
     dotenv_candidates = [
         os.path.join(current_dir, "..", "..", ".env"),
         os.path.join(current_dir, "..", ".env"),
         os.path.join(current_dir, ".env"),
+        os.path.join(os.getcwd(), ".env"),
+        os.path.join(os.getcwd(), "backend", ".env"),
         ".env",
     ]
     for path in dotenv_candidates:
@@ -38,43 +43,40 @@ def load_dotenv():
                         if not line or line.startswith("#") or "=" not in line:
                             continue
                         k, v = line.split("=", 1)
-                        os.environ[k.strip()] = v.strip().strip('"').strip("'")
-                logger.info(f"Loaded SMTP configuration from: {abs_path}")
+                        # Set if not already set by system environment
+                        key = k.strip()
+                        val = v.strip().strip('"').strip("'")
+                        if key not in os.environ or not os.environ[key]:
+                            os.environ[key] = val
+                logger.info(f"Loaded configuration from: {abs_path}")
                 return abs_path
             except Exception as e:
                 pass
     return None
 
-# Load SMTP configurations from .env on startup
+# Load configurations on startup
 load_dotenv()
 
-# SMTP Configurations from environment variables with fallbacks
-SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.gmail.com")
-try:
-    SMTP_PORT = int(os.environ.get("SMTP_PORT", "587") or "587")
-except ValueError:
-    SMTP_PORT = 587
-SMTP_USER = os.environ.get("SMTP_USER", "ronaksukhwal5@gmail.com")
-SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
-SMTP_FROM = os.environ.get("SMTP_FROM", "") or SMTP_USER
+def get_admin_email() -> str:
+    return os.environ.get("ADMIN_EMAIL", "").strip() or os.environ.get("SMTP_USER", "").strip() or "ronaksukhwal5@gmail.com"
 
-ADMIN_EMAIL = "ronaksukhwal5@gmail.com"
-
-def send_raw_email(to_email: str, subject: str, html_content: str, reply_to: str = None):
-    # Reload dotenv dynamically in case the user edited the file while the server is running
+def send_raw_email(to_email: str, subject: str, html_content: str, reply_to: str = None) -> bool:
+    """
+    Sends an email using the best available method:
+    1. Brevo HTTPS API (if BREVO_API_KEY is set - works reliably on Render without SMTP port blocking)
+    2. Resend HTTPS API (if RESEND_API_KEY is set - works reliably on Render)
+    3. Standard SMTP (with automatic fallback between port 587 STARTTLS and port 465 SSL)
+    """
     load_dotenv()
     
-    # Check for HTTP-based API keys first to bypass Render SMTP blocks
-    resend_key = os.environ.get("RESEND_API_KEY", "")
-    brevo_key = os.environ.get("BREVO_API_KEY", "")
+    resend_key = os.environ.get("RESEND_API_KEY", "").strip()
+    brevo_key = os.environ.get("BREVO_API_KEY", "").strip()
     
-    # 1. Try Brevo HTTPS API if key is set
+    # 1. Try Brevo HTTPS API
     if brevo_key:
         try:
-            import urllib.request
-            import json
             url = "https://api.brevo.com/v3/smtp/email"
-            sender_email = os.environ.get("SMTP_FROM", "") or os.environ.get("SMTP_USER", "") or "ronaksukhwal5@gmail.com"
+            sender_email = os.environ.get("SMTP_FROM", "").strip() or os.environ.get("SMTP_USER", "").strip() or "ronaksukhwal5@gmail.com"
             headers = {
                 "api-key": brevo_key,
                 "Content-Type": "application/json"
@@ -89,21 +91,19 @@ def send_raw_email(to_email: str, subject: str, html_content: str, reply_to: str
                 body["replyTo"] = {"email": reply_to}
                 
             req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), headers=headers, method="POST")
-            with urllib.request.urlopen(req, timeout=10) as response:
+            with urllib.request.urlopen(req, timeout=12) as response:
                 res_body = response.read().decode("utf-8")
-                logger.info(f"Successfully sent email to {to_email} via Brevo API: {res_body}")
+                logger.info(f"[EMAIL SUCCESS] Sent to {to_email} via Brevo API: {res_body}")
                 return True
         except Exception as e:
-            logger.error(f"Failed to send email to {to_email} via Brevo API: {str(e)}")
-            # Fall through to other methods if this failed
-            
-    # 2. Try Resend HTTPS API if key is set
+            logger.error(f"[EMAIL ERROR] Failed via Brevo API to {to_email}: {str(e)}")
+            # Fall through to next method
+
+    # 2. Try Resend HTTPS API
     if resend_key:
         try:
-            import urllib.request
-            import json
             url = "https://api.resend.com/emails"
-            sender_email = os.environ.get("SMTP_FROM", "") or "onboarding@resend.dev"
+            sender_email = os.environ.get("SMTP_FROM", "").strip() or "onboarding@resend.dev"
             headers = {
                 "Authorization": f"Bearer {resend_key}",
                 "Content-Type": "application/json"
@@ -118,42 +118,45 @@ def send_raw_email(to_email: str, subject: str, html_content: str, reply_to: str
                 body["reply_to"] = reply_to
                 
             req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), headers=headers, method="POST")
-            with urllib.request.urlopen(req, timeout=10) as response:
+            with urllib.request.urlopen(req, timeout=12) as response:
                 res_body = response.read().decode("utf-8")
-                logger.info(f"Successfully sent email to {to_email} via Resend API: {res_body}")
+                logger.info(f"[EMAIL SUCCESS] Sent to {to_email} via Resend API: {res_body}")
                 return True
         except Exception as e:
-            logger.error(f"Failed to send email to {to_email} via Resend API: {str(e)}")
-            # Fall through to other methods if this failed
+            logger.error(f"[EMAIL ERROR] Failed via Resend API to {to_email}: {str(e)}")
+            # Fall through to next method
 
     # 3. Fallback to standard SMTP
-    host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+    host = os.environ.get("SMTP_HOST", "smtp.gmail.com").strip()
     try:
-        port = int(os.environ.get("SMTP_PORT", "587"))
+        port = int(os.environ.get("SMTP_PORT", "587").strip() or "587")
     except ValueError:
         port = 587
-    user = os.environ.get("SMTP_USER", "ronaksukhwal5@gmail.com")
-    password = os.environ.get("SMTP_PASSWORD", "")
-    sender = os.environ.get("SMTP_FROM", "") or user
+        
+    user = os.environ.get("SMTP_USER", "").strip() or "ronaksukhwal5@gmail.com"
+    # Auto-clean Google App Password (remove any accidental spaces)
+    password = (os.environ.get("SMTP_PASSWORD", "") or "").replace(" ", "").strip()
+    sender = os.environ.get("SMTP_FROM", "").strip() or user
     
     if not user or not password or "your_gmail_app_password_here" in password:
         logger.warning(
-            f"[EMAIL MOCK] SMTP credentials not fully configured (USER={user}, PASSWORD_SET={bool(password)}). "
-            f"Skipping actual email send to {to_email}. Please configure SMTP_USER and SMTP_PASSWORD in your .env file, or set BREVO_API_KEY / RESEND_API_KEY. "
-            f"Logging email content preview:\nSubject: {subject}\nHTML preview: {html_content[:200]}..."
+            f"[EMAIL NOT CONFIGURED] Neither BREVO_API_KEY, RESEND_API_KEY, nor valid SMTP_PASSWORD is set. "
+            f"Cannot deliver email to {to_email}. "
+            f"Please set your SMTP_PASSWORD or BREVO_API_KEY in Render Dashboard Environment Variables or .env file."
         )
         return False
-        
+
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = subject
+    msg['From'] = sender
+    msg['To'] = to_email
+    if reply_to:
+        msg['Reply-To'] = reply_to
+    msg.attach(MIMEText(html_content, 'html'))
+    msg_str = msg.as_string()
+
+    # Attempt primary configured port
     try:
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = subject
-        msg['From'] = sender
-        msg['To'] = to_email
-        if reply_to:
-            msg['Reply-To'] = reply_to
-        msg.attach(MIMEText(html_content, 'html'))
-        
-        # Use SSL for port 465, STARTTLS for others
         if port == 465:
             server = smtplib.SMTP_SSL(host, port, timeout=10)
         else:
@@ -161,13 +164,43 @@ def send_raw_email(to_email: str, subject: str, html_content: str, reply_to: str
             server.starttls()
             
         server.login(user, password)
-        server.sendmail(sender, [to_email], msg.as_string())
+        server.sendmail(sender, [to_email], msg_str)
         server.quit()
-        logger.info(f"Successfully sent email to {to_email} via SMTP")
+        logger.info(f"[EMAIL SUCCESS] Sent to {to_email} via SMTP ({host}:{port})")
         return True
-    except Exception as e:
-        logger.error(f"Failed to send email to {to_email} due to SMTP error: {str(e)}")
+    except smtplib.SMTPAuthenticationError as auth_err:
+        logger.error(
+            f"[SMTP AUTH ERROR] Google / Mail server rejected credentials for {user}: {auth_err}. "
+            f"For Gmail: Ensure 2-Step Verification is enabled and generate a 16-character App Password at https://myaccount.google.com/apppasswords"
+        )
         return False
+    except (socket.timeout, TimeoutError, OSError) as net_err:
+        logger.warning(f"[SMTP TIMEOUT] Connection to {host}:{port} failed ({net_err}). Attempting fallback port...")
+        # If port 587 timed out (typical for Render free tier or firewall), try port 465 SSL as fallback
+        fallback_port = 465 if port != 465 else 587
+        try:
+            if fallback_port == 465:
+                server = smtplib.SMTP_SSL(host, fallback_port, timeout=10)
+            else:
+                server = smtplib.SMTP(host, fallback_port, timeout=10)
+                server.starttls()
+                
+            server.login(user, password)
+            server.sendmail(sender, [to_email], msg_str)
+            server.quit()
+            logger.info(f"[EMAIL SUCCESS] Sent to {to_email} via fallback SMTP ({host}:{fallback_port})")
+            return True
+        except Exception as fallback_err:
+            logger.error(
+                f"[SMTP FALLBACK FAILED] Outbound connection to {host}:{fallback_port} also failed: {fallback_err}. "
+                f"Note: Cloud platforms like Render Free Tier block outbound SMTP ports (25, 465, 587). "
+                f"To fix this on Render, use a free BREVO_API_KEY or RESEND_API_KEY which sends over standard HTTPS (port 443)."
+            )
+            return False
+    except Exception as e:
+        logger.error(f"[EMAIL GENERAL ERROR] Failed to send email to {to_email}: {str(e)}")
+        return False
+
 
 app = FastAPI(
     title="Sukhwal Auto Services API",
@@ -178,7 +211,7 @@ app = FastAPI(
 # Configure CORS to allow frontend communication
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # For development, allow all. In production, restrict to specific origin.
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -233,7 +266,7 @@ def send_email_notification(
     drop_address: str,
     special_instructions: str
 ):
-    # 1. Build Admin HTML Email
+    admin_email = get_admin_email()
     admin_subject = f"[New Booking Alert] Sukhwal Auto - Booking #{booking_id}"
     admin_body = f"""
     <html>
@@ -257,8 +290,7 @@ def send_email_notification(
     </html>
     """
 
-    # 2. Build Customer HTML Email (Beautiful, Premium confirmation mail)
-    customer_subject = f"Booking Confirmation - Sukhwal Auto Services"
+    customer_subject = f"Booking Confirmation - Sukhwal Auto Services (#SAS-{booking_id})"
     customer_body = f"""
     <html>
       <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #1e293b; -webkit-font-smoothing: antialiased;">
@@ -267,33 +299,26 @@ def send_email_notification(
             <td align="center">
               <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0;">
                 
-                <!-- Header Banner -->
                 <tr>
                   <td align="center" style="background: linear-gradient(135deg, #e11d48 0%, #be123c 100%); padding: 40px 30px; text-align: center;">
-                    <!-- Small Badge -->
                     <span style="display: inline-block; background-color: rgba(255, 255, 255, 0.2); color: #ffffff; font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; padding: 6px 14px; border-radius: 9999px; margin-bottom: 16px;">
                       Booking Confirmed
                     </span>
-                    <!-- Logo / Brand Name -->
-                    <h1 style="margin: 0; font-size: 28px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; text-transform: uppercase; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <h1 style="margin: 0; font-size: 28px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; text-transform: uppercase;">
                       SUKHWAL AUTO SERVICES
                     </h1>
-                    <!-- Sub-heading -->
                     <p style="margin: 8px 0 0 0; font-size: 13px; color: #ffe4e6; font-weight: 600; letter-spacing: 1px; text-transform: uppercase;">
                       Hero MotoCorp &amp; Hero Honda Specialists
                     </p>
                   </td>
                 </tr>
 
-                <!-- Main Content -->
                 <tr>
                   <td style="padding: 40px 30px;">
-                    <!-- Greeting -->
                     <h2 style="margin-top: 0; margin-bottom: 12px; font-size: 20px; font-weight: 700; color: #0f172a;">
                       Hello {customer_name},
                     </h2>
                     
-                    <!-- Confirmation Message Container -->
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 30px; background-color: #fff1f2; border-left: 4px solid #e11d48; border-radius: 8px;">
                       <tr>
                         <td style="padding: 20px;">
@@ -308,7 +333,6 @@ def send_email_notification(
                       Thank you for choosing us for your bike service. Below are the details of your appointment:
                     </p>
 
-                    <!-- Booking Details Table -->
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border-collapse: collapse; margin-bottom: 30px; background-color: #f8fafc; border-radius: 12px; border: 1px solid #f1f5f9; overflow: hidden;">
                       <tr>
                         <td style="padding: 14px 20px; border-bottom: 1px solid #f1f5f9; font-size: 14px; font-weight: 600; color: #64748b; width: 160px;">Booking Ref</td>
@@ -336,11 +360,10 @@ def send_email_notification(
                       </tr>
                     </table>
 
-                    <!-- Genuine Parts Guarantee Badge -->
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 30px; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
                       <tr>
                         <td style="background-color: #f8fafc; padding: 16px 20px; border-bottom: 1px solid #e2e8f0;">
-                          <h4 style="margin: 0; font-size: 14px; font-weight: 700; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px;">
+                          <h4 style="margin: 0; font-size: 14px; font-weight: 700; color: #0f172a; text-transform: uppercase;">
                             🛡️ 100% Genuine Spares Guarantee
                           </h4>
                         </td>
@@ -354,25 +377,22 @@ def send_email_notification(
                       </tr>
                     </table>
 
-                    <!-- Location and directions -->
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 30px; background-color: #fafafa; border: 1px solid #f1f5f9; border-radius: 12px; padding: 20px;">
                       <tr>
                         <td>
-                          <h4 style="margin-top: 0; margin-bottom: 8px; font-size: 14px; font-weight: 700; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px;">
+                          <h4 style="margin-top: 0; margin-bottom: 8px; font-size: 14px; font-weight: 700; color: #0f172a; text-transform: uppercase;">
                             📍 Workshop Location
                           </h4>
                           <p style="margin: 0 0 16px 0; font-size: 14px; line-height: 22px; color: #475569;">
                             Shop no. 2, near TB Hospital, Manikya Nagar, Bhilwara (311001)
                           </p>
-                          <!-- Call-to-action button -->
-                          <a href="https://maps.app.goo.gl/fMkj48yBKgKGPyNy9" target="_blank" style="display: inline-block; background-color: #0f172a; color: #ffffff; font-size: 14px; font-weight: 600; text-decoration: none; padding: 12px 24px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                          <a href="https://maps.app.goo.gl/fMkj48yBKgKGPyNy9" target="_blank" style="display: inline-block; background-color: #0f172a; color: #ffffff; font-size: 14px; font-weight: 600; text-decoration: none; padding: 12px 24px; border-radius: 8px;">
                             Open in Google Maps &rarr;
                           </a>
                         </td>
                       </tr>
                     </table>
 
-                    <!-- Sign off -->
                     <p style="margin: 0; font-size: 15px; line-height: 24px; color: #475569;">
                       Best Regards,<br>
                       <strong>Gopal Sukhwal &amp; Team</strong><br>
@@ -381,11 +401,10 @@ def send_email_notification(
                   </td>
                 </tr>
 
-                <!-- Footer -->
                 <tr>
                   <td style="background-color: #f1f5f9; padding: 24px 30px; text-align: center; border-top: 1px solid #e2e8f0;">
                     <p style="margin: 0 0 8px 0; font-size: 13px; color: #64748b; font-weight: 600;">
-                      Need immediate help? Call us: <a href="tel:+919414288990" style="color: #e11d48; text-decoration: none; font-weight: 700;">+91 94142 88990</a>
+                      Need immediate help? Call us: <a href="tel:+919413757303" style="color: #e11d48; text-decoration: none; font-weight: 700;">+91 94137 57303</a> / <a href="tel:+919461524500" style="color: #e11d48; text-decoration: none; font-weight: 700;">+91 94615 24500</a>
                     </p>
                     <p style="margin: 0; font-size: 11px; color: #94a3b8;">
                       &copy; 2000 - 2026 Sukhwal Auto Services. All rights reserved.
@@ -400,9 +419,20 @@ def send_email_notification(
       </body>
     </html>
     """
-    # Send both emails
-    send_raw_email(ADMIN_EMAIL, admin_subject, admin_body)
-    send_raw_email(customer_email, customer_subject, customer_body)
+
+    # 1. Send Admin Notification
+    try:
+        res_admin = send_raw_email(admin_email, admin_subject, admin_body)
+        logger.info(f"Booking #{booking_id} notification to admin ({admin_email}) sent: {res_admin}")
+    except Exception as e:
+        logger.error(f"Booking #{booking_id} error notifying admin: {e}")
+
+    # 2. Send Customer Confirmation (independent of admin send)
+    try:
+        res_cust = send_raw_email(customer_email, customer_subject, customer_body)
+        logger.info(f"Booking #{booking_id} confirmation to customer ({customer_email}) sent: {res_cust}")
+    except Exception as e:
+        logger.error(f"Booking #{booking_id} error confirming customer: {e}")
 
 
 def send_contact_email_notification(
@@ -410,7 +440,7 @@ def send_contact_email_notification(
     email: str,
     message: str
 ):
-    # 1. Build Admin HTML Email (with Reply-To header pointing to user's email)
+    admin_email = get_admin_email()
     admin_subject = f"[Contact Form Inquiry] From {name}"
     admin_body = f"""
     <html>
@@ -427,7 +457,6 @@ def send_contact_email_notification(
     </html>
     """
 
-    # 2. Build Customer HTML Email (Beautiful Confirmation Auto-Reply)
     customer_subject = f"We received your message - Sukhwal Auto Services"
     customer_body = f"""
     <html>
@@ -437,13 +466,12 @@ def send_contact_email_notification(
             <td align="center">
               <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0;">
                 
-                <!-- Header Banner -->
                 <tr>
                   <td align="center" style="background: linear-gradient(135deg, #e11d48 0%, #be123c 100%); padding: 40px 30px; text-align: center;">
                     <span style="display: inline-block; background-color: rgba(255, 255, 255, 0.2); color: #ffffff; font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; padding: 6px 14px; border-radius: 9999px; margin-bottom: 16px;">
                       Inquiry Received
                     </span>
-                    <h1 style="margin: 0; font-size: 28px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; text-transform: uppercase; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <h1 style="margin: 0; font-size: 28px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; text-transform: uppercase;">
                       SUKHWAL AUTO SERVICES
                     </h1>
                     <p style="margin: 8px 0 0 0; font-size: 13px; color: #ffe4e6; font-weight: 600; letter-spacing: 1px; text-transform: uppercase;">
@@ -452,7 +480,6 @@ def send_contact_email_notification(
                   </td>
                 </tr>
 
-                <!-- Main Content -->
                 <tr>
                   <td style="padding: 40px 30px;">
                     <h2 style="margin-top: 0; margin-bottom: 12px; font-size: 20px; font-weight: 700; color: #0f172a;">
@@ -473,7 +500,6 @@ def send_contact_email_notification(
                       Here is a copy of your message details for your records:
                     </p>
 
-                    <!-- Message Detail Table -->
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border-collapse: collapse; margin-bottom: 30px; background-color: #fafafa; border-radius: 8px; border: 1px solid #f1f5f9; overflow: hidden;">
                       <tr>
                         <td style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9; font-size: 13.5px; font-weight: 600; color: #64748b; width: 120px;">Sender Name</td>
@@ -493,7 +519,6 @@ def send_contact_email_notification(
                       For urgent inquiries, parts availability checks, or roadside assistance in Bhilwara, please call our workshop hotline directly.
                     </p>
 
-                    <!-- Sign off -->
                     <p style="margin: 0; font-size: 15px; line-height: 24px; color: #475569;">
                       Best Regards,<br>
                       <strong>Gopal Sukhwal &amp; Team</strong><br>
@@ -502,11 +527,10 @@ def send_contact_email_notification(
                   </td>
                 </tr>
 
-                <!-- Footer -->
                 <tr>
                   <td style="background-color: #f1f5f9; padding: 24px 30px; text-align: center; border-top: 1px solid #e2e8f0;">
                     <p style="margin: 0 0 8px 0; font-size: 13px; color: #64748b; font-weight: 600;">
-                      Hotline: <a href="tel:+919414288990" style="color: #e11d48; text-decoration: none; font-weight: 700;">+91 94142 88990</a>
+                      Hotline: <a href="tel:+919413757303" style="color: #e11d48; text-decoration: none; font-weight: 700;">+91 94137 57303</a> / <a href="tel:+919461524500" style="color: #e11d48; text-decoration: none; font-weight: 700;">+91 94615 24500</a>
                     </p>
                     <p style="margin: 0; font-size: 11px; color: #94a3b8;">
                       Shop no. 2, near TB Hospital, Manikya Nagar, Bhilwara (311001)
@@ -522,10 +546,19 @@ def send_contact_email_notification(
     </html>
     """
     
-    # Send admin notification (with Reply-To set to user's email)
-    send_raw_email(ADMIN_EMAIL, admin_subject, admin_body, reply_to=email)
-    # Send confirmation auto-reply to user
-    send_raw_email(email, customer_subject, customer_body)
+    # 1. Send Admin Notification (Reply-To set to user's email)
+    try:
+        res_admin = send_raw_email(admin_email, admin_subject, admin_body, reply_to=email)
+        logger.info(f"Contact notification to admin ({admin_email}) sent: {res_admin}")
+    except Exception as e:
+        logger.error(f"Contact notification error notifying admin: {e}")
+
+    # 2. Send Customer Confirmation (independent of admin send)
+    try:
+        res_cust = send_raw_email(email, customer_subject, customer_body)
+        logger.info(f"Contact auto-reply confirmation to {email} sent: {res_cust}")
+    except Exception as e:
+        logger.error(f"Contact notification error confirming customer: {e}")
 
 
 @app.get("/", tags=["Health"])
@@ -545,7 +578,6 @@ def get_bikes_catalog():
 @app.post("/api/bookings", response_model=schemas.BookingResponse, status_code=status.HTTP_201_CREATED, tags=["Bookings"])
 def create_booking(booking: schemas.BookingCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     """Creates a new service booking. Includes validation for pickup & drop options and triggers background email notifications."""
-    # Custom validation: if pickup is requested, address must be provided
     if booking.needs_pickup:
         if not booking.pickup_address or not booking.pickup_address.strip():
             raise HTTPException(
@@ -629,3 +661,86 @@ def list_contact_messages(db: Session = Depends(get_db)):
     """Retrieve all contact inquiries in reverse chronological order."""
     return db.query(models.ContactMessage).order_by(models.ContactMessage.id.desc()).all()
 
+
+# ==========================================
+# DIAGNOSTIC & VERIFICATION ENDPOINTS
+# ==========================================
+
+def _test_tcp_connection(host: str, port: int, timeout: float = 4.0) -> dict:
+    try:
+        s = socket.create_connection((host, port), timeout=timeout)
+        s.close()
+        return {"status": "reachable", "port": port}
+    except Exception as e:
+        return {"status": "blocked_or_unreachable", "port": port, "error": str(e)}
+
+@app.get("/api/diagnostic/email", tags=["Diagnostics"])
+def diagnostic_email_status():
+    """Returns the email configuration status and network connectivity to email servers."""
+    load_dotenv()
+    
+    smtp_user = os.environ.get("SMTP_USER", "").strip() or "ronaksukhwal5@gmail.com"
+    smtp_pass = (os.environ.get("SMTP_PASSWORD", "") or "").replace(" ", "").strip()
+    brevo_key = os.environ.get("BREVO_API_KEY", "").strip()
+    resend_key = os.environ.get("RESEND_API_KEY", "").strip()
+    
+    # Socket connectivity tests
+    gmail_587 = _test_tcp_connection("smtp.gmail.com", 587)
+    gmail_465 = _test_tcp_connection("smtp.gmail.com", 465)
+    brevo_443 = _test_tcp_connection("api.brevo.com", 443)
+    resend_443 = _test_tcp_connection("api.resend.com", 443)
+    
+    # Active primary provider determination
+    if brevo_key:
+        active_provider = "Brevo HTTPS API (Recommended for Render)"
+    elif resend_key:
+        active_provider = "Resend HTTPS API (Recommended for Render)"
+    elif smtp_pass:
+        active_provider = "Standard SMTP (Gmail)"
+    else:
+        active_provider = "None (No API key or SMTP_PASSWORD configured)"
+
+    return {
+        "status": "ready" if (brevo_key or resend_key or smtp_pass) else "missing_credentials",
+        "active_provider": active_provider,
+        "admin_email": get_admin_email(),
+        "credentials_configured": {
+            "smtp_user": smtp_user,
+            "smtp_password_set": bool(smtp_pass),
+            "smtp_password_length": len(smtp_pass) if smtp_pass else 0,
+            "brevo_api_key_set": bool(brevo_key),
+            "resend_api_key_set": bool(resend_key),
+        },
+        "network_reachability": {
+            "smtp_gmail_587": gmail_587,
+            "smtp_gmail_465": gmail_465,
+            "api_brevo_443": brevo_443,
+            "api_resend_443": resend_443
+        },
+        "render_notes": (
+            "Render Free Tier blocks outbound SMTP ports 25, 465, and 587. "
+            "If port 587/465 show blocked, set BREVO_API_KEY in Render Environment Variables to enable instant delivery over HTTPS port 443."
+        )
+    }
+
+
+@app.post("/api/diagnostic/send-test", tags=["Diagnostics"])
+def diagnostic_send_test(to_email: str = Query(..., description="Target email address to send a test message to")):
+    """Sends an immediate test email and returns whether it succeeded or failed."""
+    test_subject = "[Sukhwal Auto] Test Email Delivery Check"
+    test_body = f"""
+    <html>
+      <body style="font-family: Arial, sans-serif; padding: 20px; color: #1e293b;">
+        <h2 style="color: #e11d48;">Sukhwal Auto Services - Test Email</h2>
+        <p>This is a test notification confirming that email delivery from your backend is functioning properly!</p>
+        <p><strong>Recipient:</strong> {to_email}</p>
+        <p><strong>Admin Email:</strong> {get_admin_email()}</p>
+      </body>
+    </html>
+    """
+    success = send_raw_email(to_email, test_subject, test_body)
+    return {
+        "success": success,
+        "recipient": to_email,
+        "message": "Email sent successfully!" if success else "Failed to send email. Check server logs or /api/diagnostic/email for details."
+    }
