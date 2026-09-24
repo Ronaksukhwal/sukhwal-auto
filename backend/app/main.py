@@ -75,6 +75,7 @@ def send_raw_email_details(to_email: str, subject: str, html_content: str, reply
     
     resend_key = os.environ.get("RESEND_API_KEY", "").strip()
     brevo_key = os.environ.get("BREVO_API_KEY", "").strip()
+    errors = []
     
     # 1. Try Brevo HTTPS API
     if brevo_key:
@@ -102,9 +103,10 @@ def send_raw_email_details(to_email: str, subject: str, html_content: str, reply
         except urllib.error.HTTPError as http_err:
             err_details = http_err.read().decode("utf-8", errors="ignore")
             logger.error(f"[EMAIL ERROR] Brevo API HTTP {http_err.code}: {err_details}")
-            # Fall through if Brevo fails
+            errors.append(f"Brevo HTTP {http_err.code}: {err_details}")
         except Exception as e:
             logger.error(f"[EMAIL ERROR] Failed via Brevo API to {to_email}: {str(e)}")
+            errors.append(f"Brevo error: {str(e)}")
 
     # 2. Try Resend HTTPS API
     if resend_key:
@@ -132,8 +134,10 @@ def send_raw_email_details(to_email: str, subject: str, html_content: str, reply
         except urllib.error.HTTPError as http_err:
             err_details = http_err.read().decode("utf-8", errors="ignore")
             logger.error(f"[EMAIL ERROR] Resend API HTTP {http_err.code}: {err_details}")
+            errors.append(f"Resend HTTP {http_err.code}: {err_details}")
         except Exception as e:
             logger.error(f"[EMAIL ERROR] Failed via Resend API to {to_email}: {str(e)}")
+            errors.append(f"Resend error: {str(e)}")
 
     # 3. Fallback to standard SMTP
     host = os.environ.get("SMTP_HOST", "smtp.gmail.com").strip()
@@ -147,6 +151,10 @@ def send_raw_email_details(to_email: str, subject: str, html_content: str, reply
     sender = os.environ.get("SMTP_FROM", "").strip() or user
     
     if not user or not password or "your_gmail_app_password_here" in password:
+        if errors:
+            combined_err = " | ".join(errors)
+            logger.warning(f"[EMAIL FAILED] {combined_err}")
+            return False, combined_err
         msg = (
             "Neither BREVO_API_KEY, RESEND_API_KEY, nor valid SMTP_PASSWORD is set. "
             "Please configure your BREVO_API_KEY or SMTP_PASSWORD in Render Dashboard Environment Variables or .env file."
@@ -182,7 +190,8 @@ def send_raw_email_details(to_email: str, subject: str, html_content: str, reply
             "For Gmail: Ensure 2-Step Verification is enabled and generate a 16-character App Password at https://myaccount.google.com/apppasswords"
         )
         logger.error(f"[SMTP AUTH ERROR] {err_msg}")
-        return False, err_msg
+        errors.append(err_msg)
+        return False, " | ".join(errors)
     except (socket.timeout, TimeoutError, OSError) as net_err:
         logger.warning(f"[SMTP TIMEOUT] Connection to {host}:{port} failed ({net_err}). Attempting fallback port...")
         fallback_port = 465 if port != 465 else 587
@@ -205,11 +214,13 @@ def send_raw_email_details(to_email: str, subject: str, html_content: str, reply
                 "Use a free BREVO_API_KEY in Render Environment Variables for HTTPS port 443 delivery."
             )
             logger.error(f"[SMTP FALLBACK FAILED] {err_msg}")
-            return False, err_msg
+            errors.append(err_msg)
+            return False, " | ".join(errors)
     except Exception as e:
         err_msg = f"General email send error: {str(e)}"
         logger.error(f"[EMAIL GENERAL ERROR] {err_msg}")
-        return False, err_msg
+        errors.append(err_msg)
+        return False, " | ".join(errors)
 
 
 app = FastAPI(
