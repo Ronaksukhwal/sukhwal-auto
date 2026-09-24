@@ -61,8 +61,12 @@ def get_admin_email() -> str:
     return os.environ.get("ADMIN_EMAIL", "").strip() or os.environ.get("SMTP_USER", "").strip() or "ronaksukhwal5@gmail.com"
 
 def send_raw_email(to_email: str, subject: str, html_content: str, reply_to: str = None) -> bool:
+    success, _ = send_raw_email_details(to_email, subject, html_content, reply_to)
+    return success
+
+def send_raw_email_details(to_email: str, subject: str, html_content: str, reply_to: str = None) -> tuple:
     """
-    Sends an email using the best available method:
+    Sends an email using the best available method and returns (success: bool, detail: str):
     1. Brevo HTTPS API (if BREVO_API_KEY is set - works reliably on Render without SMTP port blocking)
     2. Resend HTTPS API (if RESEND_API_KEY is set - works reliably on Render)
     3. Standard SMTP (with automatic fallback between port 587 STARTTLS and port 465 SSL)
@@ -94,10 +98,13 @@ def send_raw_email(to_email: str, subject: str, html_content: str, reply_to: str
             with urllib.request.urlopen(req, timeout=12) as response:
                 res_body = response.read().decode("utf-8")
                 logger.info(f"[EMAIL SUCCESS] Sent to {to_email} via Brevo API: {res_body}")
-                return True
+                return True, f"Sent via Brevo API: {res_body}"
+        except urllib.error.HTTPError as http_err:
+            err_details = http_err.read().decode("utf-8", errors="ignore")
+            logger.error(f"[EMAIL ERROR] Brevo API HTTP {http_err.code}: {err_details}")
+            # Fall through if Brevo fails
         except Exception as e:
             logger.error(f"[EMAIL ERROR] Failed via Brevo API to {to_email}: {str(e)}")
-            # Fall through to next method
 
     # 2. Try Resend HTTPS API
     if resend_key:
@@ -121,10 +128,12 @@ def send_raw_email(to_email: str, subject: str, html_content: str, reply_to: str
             with urllib.request.urlopen(req, timeout=12) as response:
                 res_body = response.read().decode("utf-8")
                 logger.info(f"[EMAIL SUCCESS] Sent to {to_email} via Resend API: {res_body}")
-                return True
+                return True, f"Sent via Resend API: {res_body}"
+        except urllib.error.HTTPError as http_err:
+            err_details = http_err.read().decode("utf-8", errors="ignore")
+            logger.error(f"[EMAIL ERROR] Resend API HTTP {http_err.code}: {err_details}")
         except Exception as e:
             logger.error(f"[EMAIL ERROR] Failed via Resend API to {to_email}: {str(e)}")
-            # Fall through to next method
 
     # 3. Fallback to standard SMTP
     host = os.environ.get("SMTP_HOST", "smtp.gmail.com").strip()
@@ -134,17 +143,16 @@ def send_raw_email(to_email: str, subject: str, html_content: str, reply_to: str
         port = 587
         
     user = os.environ.get("SMTP_USER", "").strip() or "ronaksukhwal5@gmail.com"
-    # Auto-clean Google App Password (remove any accidental spaces)
     password = (os.environ.get("SMTP_PASSWORD", "") or "").replace(" ", "").strip()
     sender = os.environ.get("SMTP_FROM", "").strip() or user
     
     if not user or not password or "your_gmail_app_password_here" in password:
-        logger.warning(
-            f"[EMAIL NOT CONFIGURED] Neither BREVO_API_KEY, RESEND_API_KEY, nor valid SMTP_PASSWORD is set. "
-            f"Cannot deliver email to {to_email}. "
-            f"Please set your SMTP_PASSWORD or BREVO_API_KEY in Render Dashboard Environment Variables or .env file."
+        msg = (
+            "Neither BREVO_API_KEY, RESEND_API_KEY, nor valid SMTP_PASSWORD is set. "
+            "Please configure your BREVO_API_KEY or SMTP_PASSWORD in Render Dashboard Environment Variables or .env file."
         )
-        return False
+        logger.warning(f"[EMAIL NOT CONFIGURED] {msg}")
+        return False, msg
 
     msg = MIMEMultipart('alternative')
     msg['Subject'] = subject
@@ -167,16 +175,16 @@ def send_raw_email(to_email: str, subject: str, html_content: str, reply_to: str
         server.sendmail(sender, [to_email], msg_str)
         server.quit()
         logger.info(f"[EMAIL SUCCESS] Sent to {to_email} via SMTP ({host}:{port})")
-        return True
+        return True, f"Sent via SMTP ({host}:{port})"
     except smtplib.SMTPAuthenticationError as auth_err:
-        logger.error(
-            f"[SMTP AUTH ERROR] Google / Mail server rejected credentials for {user}: {auth_err}. "
-            f"For Gmail: Ensure 2-Step Verification is enabled and generate a 16-character App Password at https://myaccount.google.com/apppasswords"
+        err_msg = (
+            f"SMTP Auth Error: Google / Mail server rejected credentials for {user}: {auth_err}. "
+            "For Gmail: Ensure 2-Step Verification is enabled and generate a 16-character App Password at https://myaccount.google.com/apppasswords"
         )
-        return False
+        logger.error(f"[SMTP AUTH ERROR] {err_msg}")
+        return False, err_msg
     except (socket.timeout, TimeoutError, OSError) as net_err:
         logger.warning(f"[SMTP TIMEOUT] Connection to {host}:{port} failed ({net_err}). Attempting fallback port...")
-        # If port 587 timed out (typical for Render free tier or firewall), try port 465 SSL as fallback
         fallback_port = 465 if port != 465 else 587
         try:
             if fallback_port == 465:
@@ -189,17 +197,19 @@ def send_raw_email(to_email: str, subject: str, html_content: str, reply_to: str
             server.sendmail(sender, [to_email], msg_str)
             server.quit()
             logger.info(f"[EMAIL SUCCESS] Sent to {to_email} via fallback SMTP ({host}:{fallback_port})")
-            return True
+            return True, f"Sent via fallback SMTP ({host}:{fallback_port})"
         except Exception as fallback_err:
-            logger.error(
-                f"[SMTP FALLBACK FAILED] Outbound connection to {host}:{fallback_port} also failed: {fallback_err}. "
-                f"Note: Cloud platforms like Render Free Tier block outbound SMTP ports (25, 465, 587). "
-                f"To fix this on Render, use a free BREVO_API_KEY or RESEND_API_KEY which sends over standard HTTPS (port 443)."
+            err_msg = (
+                f"Both SMTP ports ({port} and {fallback_port}) failed: {fallback_err}. "
+                "Note: Render Free Tier blocks outbound SMTP ports 25, 465, and 587. "
+                "Use a free BREVO_API_KEY in Render Environment Variables for HTTPS port 443 delivery."
             )
-            return False
+            logger.error(f"[SMTP FALLBACK FAILED] {err_msg}")
+            return False, err_msg
     except Exception as e:
-        logger.error(f"[EMAIL GENERAL ERROR] Failed to send email to {to_email}: {str(e)}")
-        return False
+        err_msg = f"General email send error: {str(e)}"
+        logger.error(f"[EMAIL GENERAL ERROR] {err_msg}")
+        return False, err_msg
 
 
 app = FastAPI(
@@ -738,9 +748,10 @@ def diagnostic_send_test(to_email: str = Query(..., description="Target email ad
       </body>
     </html>
     """
-    success = send_raw_email(to_email, test_subject, test_body)
+    success, detail = send_raw_email_details(to_email, test_subject, test_body)
     return {
         "success": success,
         "recipient": to_email,
-        "message": "Email sent successfully!" if success else "Failed to send email. Check server logs or /api/diagnostic/email for details."
+        "detail": detail,
+        "message": "Email sent successfully!" if success else f"Failed to send email: {detail}"
     }
