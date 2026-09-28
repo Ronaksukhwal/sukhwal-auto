@@ -77,11 +77,99 @@ def send_raw_email_details(to_email: str, subject: str, html_content: str, reply
     brevo_key = os.environ.get("BREVO_API_KEY", "").strip()
     errors = []
     
-    # 1. Try Brevo HTTPS API
+    # 1. Standard Gmail SMTP (Priority: Direct connection)
+    host = os.environ.get("SMTP_HOST", "smtp.gmail.com").strip()
+    try:
+        port = int(os.environ.get("SMTP_PORT", "587").strip() or "587")
+    except ValueError:
+        port = 587
+        
+    user = os.environ.get("SMTP_USER", "").strip() or "ronaksukhwal5@gmail.com"
+    password = (os.environ.get("SMTP_PASSWORD", "") or "hxmzsbljminnxprb").replace(" ", "").strip()
+    sender = os.environ.get("SMTP_FROM", "").strip() or user
+
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = subject
+    msg['From'] = sender
+    msg['To'] = to_email
+    if reply_to:
+        msg['Reply-To'] = reply_to
+    msg.attach(MIMEText(html_content, 'html'))
+    msg_str = msg.as_string()
+
+    if user and password:
+        # Attempt primary configured port (e.g. 587 STARTTLS)
+        try:
+            if port == 465:
+                server = smtplib.SMTP_SSL(host, port, timeout=8)
+            else:
+                server = smtplib.SMTP(host, port, timeout=8)
+                server.starttls()
+                
+            server.login(user, password)
+            server.sendmail(sender, [to_email], msg_str)
+            server.quit()
+            logger.info(f"[EMAIL SUCCESS] Sent to {to_email} via direct SMTP ({host}:{port})")
+            return True, f"Sent via direct SMTP ({host}:{port})"
+        except smtplib.SMTPAuthenticationError as auth_err:
+            err_msg = f"SMTP Auth Error ({user}): {auth_err}"
+            logger.error(f"[SMTP AUTH ERROR] {err_msg}")
+            errors.append(err_msg)
+        except (socket.timeout, TimeoutError, OSError) as net_err:
+            logger.warning(f"[SMTP TIMEOUT] Connection to {host}:{port} failed ({net_err}). Attempting fallback port 465...")
+            fallback_port = 465 if port != 465 else 587
+            try:
+                if fallback_port == 465:
+                    server = smtplib.SMTP_SSL(host, fallback_port, timeout=8)
+                else:
+                    server = smtplib.SMTP(host, fallback_port, timeout=8)
+                    server.starttls()
+                    
+                server.login(user, password)
+                server.sendmail(sender, [to_email], msg_str)
+                server.quit()
+                logger.info(f"[EMAIL SUCCESS] Sent to {to_email} via fallback SMTP ({host}:{fallback_port})")
+                return True, f"Sent via fallback SMTP ({host}:{fallback_port})"
+            except Exception as fallback_err:
+                err_msg = f"Direct SMTP ports ({port} and {fallback_port}) blocked: {fallback_err}"
+                logger.warning(f"[SMTP BLOCKED] {err_msg}")
+                errors.append(err_msg)
+        except Exception as e:
+            err_msg = f"SMTP send error: {str(e)}"
+            logger.error(f"[SMTP ERROR] {err_msg}")
+            errors.append(err_msg)
+
+    # 2. Try Vercel HTTPS Relay (Bypasses Render's firewall by calling Vercel on Port 443 HTTPS)
+    relay_url = os.environ.get("EMAIL_RELAY_URL", "https://sukhwalautoservice.in/api/send-email").strip()
+    relay_key = os.environ.get("INTERNAL_RELAY_KEY", "sukhwal-secret-smtp-relay-2026").strip()
+    if relay_url:
+        try:
+            headers = {"Content-Type": "application/json"}
+            body = {
+                "to": to_email,
+                "subject": subject,
+                "html": html_content,
+                "replyTo": reply_to,
+                "secretKey": relay_key
+            }
+            req = urllib.request.Request(relay_url, data=json.dumps(body).encode("utf-8"), headers=headers, method="POST")
+            with urllib.request.urlopen(req, timeout=12) as response:
+                res_body = response.read().decode("utf-8")
+                logger.info(f"[EMAIL SUCCESS] Sent to {to_email} via Vercel HTTPS Relay: {res_body}")
+                return True, f"Sent via Vercel HTTPS Relay: {res_body}"
+        except urllib.error.HTTPError as http_err:
+            err_details = http_err.read().decode("utf-8", errors="ignore")
+            logger.error(f"[RELAY ERROR] HTTPS Relay HTTP {http_err.code}: {err_details}")
+            errors.append(f"HTTPS Relay HTTP {http_err.code}: {err_details}")
+        except Exception as e:
+            logger.error(f"[RELAY ERROR] HTTPS Relay failed: {str(e)}")
+            errors.append(f"HTTPS Relay failed: {str(e)}")
+
+    # 3. Try Brevo HTTPS API (if configured)
     if brevo_key:
         try:
             url = "https://api.brevo.com/v3/smtp/email"
-            sender_email = os.environ.get("SMTP_FROM", "").strip() or os.environ.get("SMTP_USER", "").strip() or "ronaksukhwal5@gmail.com"
+            sender_email = os.environ.get("SMTP_FROM", "").strip() or user or "ronaksukhwal5@gmail.com"
             headers = {
                 "api-key": brevo_key,
                 "Content-Type": "application/json"
@@ -96,7 +184,7 @@ def send_raw_email_details(to_email: str, subject: str, html_content: str, reply
                 body["replyTo"] = {"email": reply_to}
                 
             req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), headers=headers, method="POST")
-            with urllib.request.urlopen(req, timeout=12) as response:
+            with urllib.request.urlopen(req, timeout=10) as response:
                 res_body = response.read().decode("utf-8")
                 logger.info(f"[EMAIL SUCCESS] Sent to {to_email} via Brevo API: {res_body}")
                 return True, f"Sent via Brevo API: {res_body}"
@@ -105,10 +193,10 @@ def send_raw_email_details(to_email: str, subject: str, html_content: str, reply
             logger.error(f"[EMAIL ERROR] Brevo API HTTP {http_err.code}: {err_details}")
             errors.append(f"Brevo HTTP {http_err.code}: {err_details}")
         except Exception as e:
-            logger.error(f"[EMAIL ERROR] Failed via Brevo API to {to_email}: {str(e)}")
+            logger.error(f"[EMAIL ERROR] Failed via Brevo API: {str(e)}")
             errors.append(f"Brevo error: {str(e)}")
 
-    # 2. Try Resend HTTPS API
+    # 4. Try Resend HTTPS API (if configured)
     if resend_key:
         try:
             url = "https://api.resend.com/emails"
@@ -127,7 +215,7 @@ def send_raw_email_details(to_email: str, subject: str, html_content: str, reply
                 body["reply_to"] = reply_to
                 
             req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), headers=headers, method="POST")
-            with urllib.request.urlopen(req, timeout=12) as response:
+            with urllib.request.urlopen(req, timeout=10) as response:
                 res_body = response.read().decode("utf-8")
                 logger.info(f"[EMAIL SUCCESS] Sent to {to_email} via Resend API: {res_body}")
                 return True, f"Sent via Resend API: {res_body}"
@@ -136,91 +224,12 @@ def send_raw_email_details(to_email: str, subject: str, html_content: str, reply
             logger.error(f"[EMAIL ERROR] Resend API HTTP {http_err.code}: {err_details}")
             errors.append(f"Resend HTTP {http_err.code}: {err_details}")
         except Exception as e:
-            logger.error(f"[EMAIL ERROR] Failed via Resend API to {to_email}: {str(e)}")
+            logger.error(f"[EMAIL ERROR] Failed via Resend API: {str(e)}")
             errors.append(f"Resend error: {str(e)}")
 
-    # 3. Fallback to standard SMTP
-    host = os.environ.get("SMTP_HOST", "smtp.gmail.com").strip()
-    try:
-        port = int(os.environ.get("SMTP_PORT", "587").strip() or "587")
-    except ValueError:
-        port = 587
-        
-    user = os.environ.get("SMTP_USER", "").strip() or "ronaksukhwal5@gmail.com"
-    password = (os.environ.get("SMTP_PASSWORD", "") or "").replace(" ", "").strip()
-    sender = os.environ.get("SMTP_FROM", "").strip() or user
-    
-    if not user or not password or "your_gmail_app_password_here" in password:
-        if errors:
-            combined_err = " | ".join(errors)
-            logger.warning(f"[EMAIL FAILED] {combined_err}")
-            return False, combined_err
-        msg = (
-            "Neither BREVO_API_KEY, RESEND_API_KEY, nor valid SMTP_PASSWORD is set. "
-            "Please configure your BREVO_API_KEY or SMTP_PASSWORD in Render Dashboard Environment Variables or .env file."
-        )
-        logger.warning(f"[EMAIL NOT CONFIGURED] {msg}")
-        return False, msg
-
-    msg = MIMEMultipart('alternative')
-    msg['Subject'] = subject
-    msg['From'] = sender
-    msg['To'] = to_email
-    if reply_to:
-        msg['Reply-To'] = reply_to
-    msg.attach(MIMEText(html_content, 'html'))
-    msg_str = msg.as_string()
-
-    # Attempt primary configured port
-    try:
-        if port == 465:
-            server = smtplib.SMTP_SSL(host, port, timeout=10)
-        else:
-            server = smtplib.SMTP(host, port, timeout=10)
-            server.starttls()
-            
-        server.login(user, password)
-        server.sendmail(sender, [to_email], msg_str)
-        server.quit()
-        logger.info(f"[EMAIL SUCCESS] Sent to {to_email} via SMTP ({host}:{port})")
-        return True, f"Sent via SMTP ({host}:{port})"
-    except smtplib.SMTPAuthenticationError as auth_err:
-        err_msg = (
-            f"SMTP Auth Error: Google / Mail server rejected credentials for {user}: {auth_err}. "
-            "For Gmail: Ensure 2-Step Verification is enabled and generate a 16-character App Password at https://myaccount.google.com/apppasswords"
-        )
-        logger.error(f"[SMTP AUTH ERROR] {err_msg}")
-        errors.append(err_msg)
-        return False, " | ".join(errors)
-    except (socket.timeout, TimeoutError, OSError) as net_err:
-        logger.warning(f"[SMTP TIMEOUT] Connection to {host}:{port} failed ({net_err}). Attempting fallback port...")
-        fallback_port = 465 if port != 465 else 587
-        try:
-            if fallback_port == 465:
-                server = smtplib.SMTP_SSL(host, fallback_port, timeout=10)
-            else:
-                server = smtplib.SMTP(host, fallback_port, timeout=10)
-                server.starttls()
-                
-            server.login(user, password)
-            server.sendmail(sender, [to_email], msg_str)
-            server.quit()
-            logger.info(f"[EMAIL SUCCESS] Sent to {to_email} via fallback SMTP ({host}:{fallback_port})")
-            return True, f"Sent via fallback SMTP ({host}:{fallback_port})"
-        except Exception as fallback_err:
-            err_msg = (
-                f"Both SMTP ports ({port} and {fallback_port}) failed: {fallback_err}. "
-                "Note: Render Free Tier blocks outbound SMTP ports 25, 465, and 587. "
-                "Use a free BREVO_API_KEY in Render Environment Variables for HTTPS port 443 delivery."
-            )
-            logger.error(f"[SMTP FALLBACK FAILED] {err_msg}")
-            errors.append(err_msg)
-            return False, " | ".join(errors)
-    except Exception as e:
-        err_msg = f"General email send error: {str(e)}"
-        logger.error(f"[EMAIL GENERAL ERROR] {err_msg}")
-        errors.append(err_msg)
-        return False, " | ".join(errors)
+    final_msg = " | ".join(errors) if errors else "No email dispatch method succeeded."
+    logger.error(f"[EMAIL DISPATCH FAILED] {final_msg}")
+    return False, final_msg
 
 
 app = FastAPI(
