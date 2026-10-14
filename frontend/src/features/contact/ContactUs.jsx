@@ -31,14 +31,34 @@ export default function ContactUs() {
     };
 
     try {
-      const response = await fetch(`${API_URL}/api/contact`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
+      let response;
+      // 1. Try direct Vercel serverless route (/api/contact) for instant delivery
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        response = await fetch('/api/contact', {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+      } catch (e) {
+        console.warn("Direct /api/contact endpoint unavailable, trying backend API_URL...", e);
+      }
+
+      // 2. If direct route failed or not ok (e.g. localhost dev), use backend API_URL
+      if (!response || !response.ok) {
+        response = await fetch(`${API_URL}/api/contact`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+      }
 
       if (!response.ok) {
-        throw new Error('Failed to send inquiry. Please try again.');
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.detail || errJson.error || 'Failed to send inquiry. Please try again.');
       }
 
       setSubmitted(true);

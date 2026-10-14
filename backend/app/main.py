@@ -77,33 +77,68 @@ def send_raw_email_details(to_email: str, subject: str, html_content: str, reply
     brevo_key = os.environ.get("BREVO_API_KEY", "").strip()
     errors = []
     
-    # 1. Standard Gmail SMTP (Priority: Direct connection)
-    host = os.environ.get("SMTP_HOST", "smtp.gmail.com").strip()
-    try:
-        port = int(os.environ.get("SMTP_PORT", "587").strip() or "587")
-    except ValueError:
-        port = 587
-        
-    user = os.environ.get("SMTP_USER", "").strip() or "ronaksukhwal5@gmail.com"
-    password = (os.environ.get("SMTP_PASSWORD", "") or "hxmzsbljminnxprb").replace(" ", "").strip()
-    sender = os.environ.get("SMTP_FROM", "").strip() or user
+    # Check if running on Render (where SMTP ports are blocked)
+    is_render = bool(os.environ.get("RENDER"))
+    relay_url = os.environ.get("EMAIL_RELAY_URL", "https://sukhwalautoservice.in/api/send-email").strip()
+    relay_key = os.environ.get("INTERNAL_RELAY_KEY", "sukhwal-secret-smtp-relay-2026").strip()
 
-    msg = MIMEMultipart('alternative')
-    msg['Subject'] = subject
-    msg['From'] = sender
-    msg['To'] = to_email
-    if reply_to:
-        msg['Reply-To'] = reply_to
-    msg.attach(MIMEText(html_content, 'html'))
-    msg_str = msg.as_string()
+    # Helper function to send via Vercel HTTPS Relay
+    def _try_vercel_relay():
+        if not relay_url:
+            return None
+        try:
+            headers = {"Content-Type": "application/json"}
+            body = {
+                "to": to_email,
+                "subject": subject,
+                "html": html_content,
+                "replyTo": reply_to,
+                "secretKey": relay_key
+            }
+            req = urllib.request.Request(relay_url, data=json.dumps(body).encode("utf-8"), headers=headers, method="POST")
+            with urllib.request.urlopen(req, timeout=10) as response:
+                res_body = response.read().decode("utf-8")
+                logger.info(f"[EMAIL SUCCESS] Sent to {to_email} via Vercel HTTPS Relay: {res_body}")
+                return True, f"Sent via Vercel HTTPS Relay: {res_body}"
+        except urllib.error.HTTPError as http_err:
+            err_details = http_err.read().decode("utf-8", errors="ignore")
+            logger.error(f"[RELAY ERROR] HTTPS Relay HTTP {http_err.code}: {err_details}")
+            errors.append(f"HTTPS Relay HTTP {http_err.code}: {err_details}")
+        except Exception as e:
+            logger.error(f"[RELAY ERROR] HTTPS Relay failed: {str(e)}")
+            errors.append(f"HTTPS Relay failed: {str(e)}")
+        return None
 
-    if user and password:
-        # Attempt primary configured port (e.g. 587 STARTTLS)
+    # Helper function to send via direct SMTP
+    def _try_direct_smtp():
+        host = os.environ.get("SMTP_HOST", "smtp.gmail.com").strip()
+        try:
+            port = int(os.environ.get("SMTP_PORT", "587").strip() or "587")
+        except ValueError:
+            port = 587
+            
+        user = os.environ.get("SMTP_USER", "").strip() or "ronaksukhwal5@gmail.com"
+        password = (os.environ.get("SMTP_PASSWORD", "") or "hxmzsbljminnxprb").replace(" ", "").strip()
+        sender = os.environ.get("SMTP_FROM", "").strip() or user
+
+        if not user or not password:
+            return None
+
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = sender
+        msg['To'] = to_email
+        if reply_to:
+            msg['Reply-To'] = reply_to
+        msg.attach(MIMEText(html_content, 'html'))
+        msg_str = msg.as_string()
+
+        # Primary port attempt (timeout 3s for fast fallback)
         try:
             if port == 465:
-                server = smtplib.SMTP_SSL(host, port, timeout=8)
+                server = smtplib.SMTP_SSL(host, port, timeout=4)
             else:
-                server = smtplib.SMTP(host, port, timeout=8)
+                server = smtplib.SMTP(host, port, timeout=4)
                 server.starttls()
                 
             server.login(user, password)
@@ -120,9 +155,9 @@ def send_raw_email_details(to_email: str, subject: str, html_content: str, reply
             fallback_port = 465 if port != 465 else 587
             try:
                 if fallback_port == 465:
-                    server = smtplib.SMTP_SSL(host, fallback_port, timeout=8)
+                    server = smtplib.SMTP_SSL(host, fallback_port, timeout=4)
                 else:
-                    server = smtplib.SMTP(host, fallback_port, timeout=8)
+                    server = smtplib.SMTP(host, fallback_port, timeout=4)
                     server.starttls()
                     
                 server.login(user, password)
@@ -138,32 +173,24 @@ def send_raw_email_details(to_email: str, subject: str, html_content: str, reply
             err_msg = f"SMTP send error: {str(e)}"
             logger.error(f"[SMTP ERROR] {err_msg}")
             errors.append(err_msg)
+        return None
 
-    # 2. Try Vercel HTTPS Relay (Bypasses Render's firewall by calling Vercel on Port 443 HTTPS)
-    relay_url = os.environ.get("EMAIL_RELAY_URL", "https://sukhwalautoservice.in/api/send-email").strip()
-    relay_key = os.environ.get("INTERNAL_RELAY_KEY", "sukhwal-secret-smtp-relay-2026").strip()
-    if relay_url:
-        try:
-            headers = {"Content-Type": "application/json"}
-            body = {
-                "to": to_email,
-                "subject": subject,
-                "html": html_content,
-                "replyTo": reply_to,
-                "secretKey": relay_key
-            }
-            req = urllib.request.Request(relay_url, data=json.dumps(body).encode("utf-8"), headers=headers, method="POST")
-            with urllib.request.urlopen(req, timeout=12) as response:
-                res_body = response.read().decode("utf-8")
-                logger.info(f"[EMAIL SUCCESS] Sent to {to_email} via Vercel HTTPS Relay: {res_body}")
-                return True, f"Sent via Vercel HTTPS Relay: {res_body}"
-        except urllib.error.HTTPError as http_err:
-            err_details = http_err.read().decode("utf-8", errors="ignore")
-            logger.error(f"[RELAY ERROR] HTTPS Relay HTTP {http_err.code}: {err_details}")
-            errors.append(f"HTTPS Relay HTTP {http_err.code}: {err_details}")
-        except Exception as e:
-            logger.error(f"[RELAY ERROR] HTTPS Relay failed: {str(e)}")
-            errors.append(f"HTTPS Relay failed: {str(e)}")
+    # Priority 1: On Render, use Vercel HTTPS Relay first (0 delay, port 443 open)
+    if is_render:
+        relay_res = _try_vercel_relay()
+        if relay_res:
+            return relay_res
+        smtp_res = _try_direct_smtp()
+        if smtp_res:
+            return smtp_res
+    else:
+        # Priority 1 (Localhost / standard server): use direct SMTP first
+        smtp_res = _try_direct_smtp()
+        if smtp_res:
+            return smtp_res
+        relay_res = _try_vercel_relay()
+        if relay_res:
+            return relay_res
 
     # 3. Try Brevo HTTPS API (if configured)
     if brevo_key:
